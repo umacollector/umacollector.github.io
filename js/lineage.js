@@ -21,6 +21,22 @@
   const S = store.get("soy", null) || { t: null, p1: null, p2: null, g11: null, g12: null, g21: null, g22: null, r: { g11: 0, g12: 0, g21: 0, g22: 0 } };
   const save = () => store.set("soy", S);
 
+  /* Oyunun kuralları: ebeveynler yetiştirdiğin Uma'yla ve birbirleriyle aynı karakter olamaz. Büyükebeveynler o
+     ebeveynin kendi ebeveynleridir: ikisi aynı karakter olamaz, ebeveynin kendisi de olamaz. */
+  function conflicts(k) {
+    return { t: ["p1", "p2"], p1: ["t", "p2", "g11", "g12"], p2: ["t", "p1", "g21", "g22"],
+      g11: ["p1", "g12"], g12: ["p1", "g11"], g21: ["p2", "g22"], g22: ["p2", "g21"] }[k];
+  }
+  // Önceden kaydedilmiş kurala aykırı seçimleri temizler: sonraki slottaki çakışan seçim kalkar
+  function sanitize() {
+    let changed = false;
+    SLOTS.forEach((k, i) => {
+      if (!S[k]) return;
+      if (conflicts(k).some((o) => SLOTS.indexOf(o) < i && S[o] && chara(S[o]) === chara(S[k]))) { S[k] = null; if (k in S.r) S.r[k] = 0; changed = true; }
+    });
+    if (changed) save();
+  }
+
   /* ---------- uyum ---------- */
   let memo = null;
   function groups(c) {
@@ -107,6 +123,7 @@
 
   function render(app) {
     if (!T()) { app.innerHTML = `<p class="loading">Yükleniyor…</p>`; window.UmaSim.needTools(() => { if (location.hash === "#araclar/soy") render(app); }); return; }
+    sanitize();
     app.innerHTML = `
       <div class="page-head"><h1>Soy Planlayıcı</h1></div>
       <div class="ln-wrap">
@@ -131,8 +148,7 @@
     const owned = window.UmaApp.owned();
     const base = calc(S).total;
     const blocked = new Set();
-    if (k.startsWith("p")) { [S.t, S[k === "p1" ? "p2" : "p1"]].forEach((x) => x && blocked.add(chara(x))); }
-    if (k === "t") [S.p1, S.p2].forEach((x) => x && blocked.add(chara(x)));
+    conflicts(k).forEach((x) => S[x] && blocked.add(chara(S[x])));
     const gain = (id) => { if (k === "t" && !S.p1 && !S.p2) return null; const st = { ...S, r: S.r, [k]: id }; return calc(st).total - (S[k] ? calc({ ...S, [k]: null }).total : base); };
     const cands = D().umas.map((u) => ({ u, g: blocked.has(chara(u.id)) ? null : gain(u.id) }));
     const draw = () => {
