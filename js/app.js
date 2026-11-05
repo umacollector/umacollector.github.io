@@ -914,6 +914,17 @@
   let invUseLevel = store.get("invUseLevel", true);
   let teamAnim = false;   // sadece düğmeye basılınca çubuklar animasyonla gelir
 
+  // Uma'nın ana kulvarı: rehberdeki Team Trials kategorisi. Sendeki kostümlerine bakılır, envanter yoksa ya da
+  // eşleşmezse bütün kostümlerine. Kostümlerden biri bu sütuna uyuyorsa uyarı çıkmaz.
+  function laneWarn(name, cat) {
+    const all = DATA.umas.filter((u) => norm(u.name) === norm(name) && DATA.guides[u.id]);
+    const mine = all.filter((u) => ownedUma.has(u.id));
+    const lanes = [...new Set((mine.length ? mine : all).map((u) => DATA.guides[u.id].team_trials))];
+    if (!lanes.length || lanes.includes(cat)) return "";
+    const tip = `Ana kulvarı ${lanes.join(" ya da ")}, ${cat} değil`;
+    return `<span class="lane-warn" tabindex="0" role="img" aria-label="${esc(tip)}" data-tip="${esc(tip)}">!</span>`;
+  }
+
   function renderTeam() {
     const t = INV.team;
     const cats = ["Sprint", "Mile", "Medium", "Long", "Dirt"];
@@ -937,7 +948,7 @@
         return `<a class="tslot ${r.slot === "ACE" ? "ace" : ""}" ${u ? `href="#uma/${u.id}"` : ""}>
           ${r.slot === "ACE" ? `<span class="ace-tag">ACE</span>` : ""}
           ${rk ? `<span class="rank-corner">${rankBadge(rk.name)}</span>` : ""}
-          ${u ? `<img src="${umaImg(u)}" alt="" loading="lazy" ${hideBroken}>` : `<span class="noimg">?</span>`}
+          <span class="ts-av">${u ? `<img src="${umaImg(u)}" alt="" loading="lazy" ${hideBroken}>` : `<span class="noimg">?</span>`}${laneWarn(r.name, cat)}</span>
           <span class="ts-name">${esc(r.name)}</span>
           <span class="ts-ep">${esc(r.epithet)}</span>
           <span class="ts-pts">${r.points ? r.points.toLocaleString("tr-TR") + " puan" : "puan okunamadı"}</span>
@@ -1397,6 +1408,8 @@
   }));
 
   app.addEventListener("click", (ev) => {
+    const lw = ev.target.closest && ev.target.closest(".lane-warn");   // dokunmatikte açıklamayı açar, Uma sayfasına gitmez
+    if (lw) { ev.preventDefault(); ev.stopPropagation(); lw.focus(); return; }
     const pa = ev.target.closest && ev.target.closest("[data-pavatar]");
     if (pa) { window.UmaAuth.saveProfile({ avatar: Number(pa.dataset.pavatar) }).catch(() => {}); return; }
     const pb = ev.target.closest && ev.target.closest("[data-pbanner]");
