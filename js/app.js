@@ -1025,13 +1025,11 @@
     draw();
   }
 
-  // İsim kutusu: profil fotoğrafındaki Uma'nın kıyafet rengi, yazı rengi okunurluğa göre
+  // İsim kutusu: zemin temanın rengi, çerçeve profil fotoğrafındaki Uma'nın kıyafet rengi
   function nameChipStyle(avatarId) {
     const u = DATA.umaById[avatarId];
     const c = (u && u.pal && u.pal[0]) || "#ff5fa2";
-    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255);
-    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * bl;
-    return `background:${c};color:${lum > 0.58 ? "#1b1b1f" : "#ffffff"}`;
+    return `--nc:${c}`;
   }
 
   // Profil fotoğrafı: Uma görseli yüze yakın kırpılır (büyük görselden, net olsun)
