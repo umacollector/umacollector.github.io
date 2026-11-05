@@ -183,7 +183,7 @@
   function ownBadge(id) {
     if (!INV.cards) return "";
     const o = ownedCard.get(id);
-    return o ? `<span class="own yes"><span class="own-l">Sende · </span>LB${o.uncap}</span>` : `<span class="own no"><span class="own-l">Sende </span>yok</span>`;
+    return o ? `<span class="own yes"><span class="own-l">Sende ·&nbsp;</span>LB${o.uncap}</span>` : `<span class="own no"><span class="own-l">Sende&nbsp;</span>yok</span>`;
   }
 
   function cardMini(id, extra = "") {
