@@ -919,10 +919,104 @@
                                                 epithet: r.epithet || "", points: r.points || 0 }));
   }
 
+  // Kart banner'ı: kart görseli, kullanıcının seçtiği yakınlık (zoom) ve konumla (x, y yüzde) gösterilir.
+  const BANNER_ASPECT = 1208 / 210;   // masaüstündeki banner'ın en/boy oranı
+  const bannerFrame = (b) => ({ x: b.x ?? 50, y: b.y ?? 25, zoom: b.zoom ?? 1 });
+  function cardBannerStyle(b) {
+    const f = bannerFrame(b);
+    return `background-image:url('img/card_l/${b.id}.webp');background-size:${(f.zoom * 100).toFixed(1)}% auto;background-position:${f.x.toFixed(1)}% ${f.y.toFixed(1)}%`;
+  }
+
+  // Kart seçilince açılan pencere: banner'da kartın hangi kısmının görüneceği ayarlanır
+  function openBannerEditor(cardId) {
+    const cur = AUTH.profile && AUTH.profile.banner;
+    const f = cur && cur.kind === "card" && cur.id === cardId ? bannerFrame(cur) : { x: 50, y: 25, zoom: 1 };
+    const c = DATA.cardById[cardId];
+    const bg = document.createElement("div");
+    bg.className = "modal-bg";
+    bg.innerHTML = `
+      <div class="modal wide-modal" role="dialog" aria-modal="true" aria-labelledby="beTitle">
+        <button type="button" class="modal-x" data-beclose aria-label="Kapat">×</button>
+        <h2 id="beTitle">Banner'ı ayarla</h2>
+        <p class="auth-hint be-sub">${esc(c.name)} ${esc(c.title)}</p>
+        <div class="be-preview" aria-label="Banner önizlemesi"></div>
+        <div class="be-body">
+          <div class="be-card"><img src="img/card_l/${cardId}.webp" alt="" draggable="false"><span class="be-frame"></span></div>
+          <div class="be-side">
+            <p class="auth-hint">Çerçeveyi ya da üstteki önizlemeyi sürükleyerek kartın banner'da görünecek kısmını seç.</p>
+            <label class="be-zoom">Yakınlaştır<input type="range" min="1" max="2" step="0.01" value="${f.zoom}"></label>
+            <div class="be-actions">
+              <button type="button" class="reset" data-bereset>Ortala</button>
+              <button type="button" class="auth-go" data-besave>Kaydet</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(bg);
+    document.body.classList.add("modal-open");
+    const prev = bg.querySelector(".be-preview"), img = bg.querySelector(".be-card img");
+    const frame = bg.querySelector(".be-frame"), zoomIn = bg.querySelector(".be-zoom input");
+    const ratio = () => (img.naturalHeight && img.naturalWidth ? img.naturalHeight / img.naturalWidth : 600 / 450);
+    // Görünen alanın kart görseline oranı (0-1)
+    const rect = () => {
+      const w = 1 / f.zoom, h = Math.min(1, 1 / (f.zoom * ratio() * BANNER_ASPECT));
+      return { w, h, left: (f.x / 100) * (1 - w), top: (f.y / 100) * (1 - h) };
+    };
+    const draw = () => {
+      prev.setAttribute("style", cardBannerStyle({ id: cardId, ...f }));
+      const r = rect();
+      Object.assign(frame.style, { left: r.left * 100 + "%", top: r.top * 100 + "%", width: r.w * 100 + "%", height: r.h * 100 + "%" });
+    };
+    const clamp = (v) => Math.max(0, Math.min(100, v));
+    // Sürükleme: önizlemede resim elle tutulup çekilir gibi, kart üzerinde çerçeve taşınır gibi
+    function drag(el, sign) {
+      el.addEventListener("pointerdown", (ev) => {
+        ev.preventDefault();
+        el.setPointerCapture(ev.pointerId);
+        let lx = ev.clientX, ly = ev.clientY;
+        const move = (e) => {
+          const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
+          const r = rect();
+          if (sign < 0) {   // önizleme: piksel → görsel üzerindeki kayma
+            const pw = prev.clientWidth, imgW = pw * f.zoom, imgH = imgW * ratio();
+            if (imgW > pw) f.x = clamp(f.x - dx / (imgW - pw) * 100);
+            if (imgH > prev.clientHeight) f.y = clamp(f.y - dy / (imgH - prev.clientHeight) * 100);
+          } else {          // çerçeve: kart görseli üzerindeki kayma
+            const cw = img.clientWidth, ch = img.clientHeight;
+            if (r.w < 1) f.x = clamp(f.x + dx / (cw * (1 - r.w)) * 100);
+            if (r.h < 1) f.y = clamp(f.y + dy / (ch * (1 - r.h)) * 100);
+          }
+          draw();
+        };
+        const up = () => { el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.classList.remove("dragging"); };
+        el.classList.add("dragging");
+        el.addEventListener("pointermove", move);
+        el.addEventListener("pointerup", up);
+      });
+    }
+    drag(prev, -1);
+    drag(bg.querySelector(".be-card"), 1);
+    zoomIn.addEventListener("input", () => { f.zoom = Number(zoomIn.value); draw(); });
+    const close = () => { bg.remove(); document.body.classList.remove("modal-open"); document.removeEventListener("keydown", esc_); };
+    const esc_ = (e) => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", esc_);
+    bg.addEventListener("click", (ev) => {
+      if (ev.target === bg || ev.target.closest("[data-beclose]")) close();
+      else if (ev.target.closest("[data-bereset]")) { Object.assign(f, { x: 50, y: 25, zoom: 1 }); zoomIn.value = 1; draw(); }
+      else if (ev.target.closest("[data-besave]")) {
+        const r2 = (v) => Math.round(v * 10) / 10;
+        window.UmaAuth.saveProfile({ banner: { kind: "card", id: cardId, x: r2(f.x), y: r2(f.y), zoom: Math.round(f.zoom * 100) / 100 } }).catch(() => {});
+        close();
+      }
+    });
+    if (img.complete) draw(); else img.addEventListener("load", draw);
+    draw();
+  }
+
   function bannerHtml(b) {
     if (!b) return `<div class="pf-banner empty"></div>`;
     if (b.kind === "card" && DATA.cardById[b.id])
-      return `<div class="pf-banner card"><img class="pf-blur" src="img/card_l/${b.id}.webp" alt="" onerror="this.src='img/card/${b.id}.png'"><img class="pf-card" src="img/card_l/${b.id}.webp" alt="" onerror="this.src='img/card/${b.id}.png'"></div>`;
+      return `<div class="pf-banner card" style="${cardBannerStyle(b)}"></div>`;
     if (b.kind === "uma" && DATA.umaById[b.id])
       return `<div class="pf-banner uma"><img src="${umaImg(DATA.umaById[b.id], true)}" alt=""></div>`;
     return `<div class="pf-banner empty"></div>`;
@@ -1164,6 +1258,7 @@
     if (pa) { window.UmaAuth.saveProfile({ avatar: Number(pa.dataset.pavatar) }).catch(() => {}); return; }
     const pb = ev.target.closest && ev.target.closest("[data-pbanner]");
     if (pb) {
+      if (pb.dataset.pbanner === "card") { openBannerEditor(Number(pb.dataset.pid)); return; }
       const banner = pb.dataset.pbanner === "none" ? null : { kind: pb.dataset.pbanner, id: Number(pb.dataset.pid) };
       window.UmaAuth.saveProfile({ banner }).catch(() => {}); return;
     }
