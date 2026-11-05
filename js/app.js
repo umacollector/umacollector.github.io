@@ -1025,12 +1025,16 @@
     draw();
   }
 
-  // İsim kutusu: zemin temanın rengi, çerçeve profil fotoğrafındaki Uma'nın kıyafet rengi
-  function nameChipStyle(avatarId) {
-    const u = DATA.umaById[avatarId];
-    const c = (u && u.pal && u.pal[0]) || "#ff5fa2";
-    return `--nc:${c}`;
+  // İsim kutusu: zemin temanın rengi, çerçeve banner gradyanının ilk rengi
+  function bannerFirstColor(b) {
+    if (!b || !bannerSubject(b)) return "var(--pink-soft)";           // banner yokken varsayılan gradyanın ilk rengi
+    const bg = b.bg || { mode: "auto" };
+    if (bg.mode === "preset" && BANNER_PRESETS[bg.preset]) return BANNER_PRESETS[bg.preset][2];
+    if (bg.mode === "custom" && /^#[0-9a-f]{6}$/i.test(bg.a || "")) return bg.a;
+    const pal = bannerSubject(b).pal || ["#ff5fa2"];
+    return `color-mix(in srgb, ${pal[0]} 62%, var(--surface))`;    // otomatik gradyanla aynı ton
   }
+  const nameChipStyle = (banner) => `--nc:${bannerFirstColor(banner)}`;
 
   // Profil fotoğrafı: Uma görseli yüze yakın kırpılır (büyük görselden, net olsun)
   const faceImg = (u) => `<img class="face-img" src="${umaImg(u, true)}" alt="" loading="lazy">`;
@@ -1086,7 +1090,7 @@
         <div class="pf-head">
           ${avatarHtml(pr.avatar)}
           <div class="pf-id">
-            <h1><span class="pf-name" style="${nameChipStyle(pr.avatar)}">${esc(pr.username || "")}</span></h1>
+            <h1><span class="pf-name" style="${nameChipStyle(pr.banner)}">${esc(pr.username || "")}</span></h1>
             <div class="pf-stats"><span>${umaCount} Uma</span><span>${cardCount} kart</span>${total ? `<span>${total.toLocaleString("tr-TR")} takım puanı</span>` : ""}</div>
           </div>
         </div>
