@@ -286,23 +286,31 @@
     </div>`;
   }
 
-  // Özel bonusun (Lvl'de açılan) kabaca karşılığı: hangi etkiyi ne kadar verdiği. Koşullu olanlar
-  // ortalama bir değerle sayılır (ör. "en fazla %20" → 10).
-  // deckTypes: kurulacak destedeki farklı kart türleri (koşulu türe bağlı özel bonuslar için)
+  // Özel bonusun (Lvl'de açılan) bir kariyerdeki ortalama karşılığı: [etki, değer] listesi.
+  // En az/en çok aralıkları GameTora'nın kendi hesabından alındı; aralıklı olanlar ortalamayla,
+  // koşulu desteye bağlı olanlar o desteye göre sayılır.
+  // deckTypes: kurulacak destedeki farklı kart türleri
   function uniqueBonus(c, deckTypes) {
     const out = [];
+    const avg = (a, b) => (a + b) / 2;
     (c.unique ? c.unique.effects : []).forEach((e) => {
       const v = e.value, v1 = e.value_1, v2 = e.value_2, v3 = e.value_3, v4 = e.value_4;
-      if (e.type < 100) out.push([e.type, v]);
-      else if (e.type === 101) { out.push([v1, v2]); if (v3) out.push([v3, v4]); }
-      else if (e.type === 102) out.push([8, v1]);
-      else if (e.type === 103) { if (deckTypes && deckTypes.size >= v) out.push([8, v1]); }   // en az v farklı tür şartı
-      else if (e.type === 104) out.push([8, v1 / 2]);
-      else if (e.type === 106) out.push([v1, (v * v2) / 2]);
-      else if (e.type === 108) out.push([v, v3]);
-      else if (e.type === 109) out.push([v, 600 / v1 / 2]);
-      else if ([110, 111, 113, 115, 122].includes(e.type)) out.push([v, v1]);
-      else if (e.type === 114) out.push([v, (v1 + v2) / 2]);
+      switch (e.type) {
+        case 101: out.push([v1, v2]); if (v3) out.push([v3, v4]); break;          // dostluk göstergesi dolunca: kariyerin çoğunda açık
+        case 102: out.push([8, v1 / 2]); break;                                  // sadece kendi türü dışındaki antrenmanda: yarı
+        case 103: if (deckTypes && deckTypes.size >= v) out.push([8, v1]); break; // destede en az v farklı tür şartı
+        case 104: out.push([8, v1 / 2]); break;                                  // fan sayısıyla 0'dan v1'e
+        case 106: out.push([v1, (v * v2) / 2]); break;                           // dostluk antrenmanı sayısıyla 0'dan v*v2'ye
+        case 107: out.push([v, avg(v4, v3)]); break;                             // enerji azaldıkça v4'ten v3'e
+        case 108: out.push([v, avg(v3, v4)]); break;                             // maksimum enerjiyle v3'ten v4'e
+        case 109: out.push([v, 600 / v1 / 2]); break;                            // toplam dostlukla 0'dan 600/v1'e
+        case 110: case 111: out.push([v, 3 * v1]); break;                        // kart sayısı / antrenman seviyesiyle v1'den 5*v1'e
+        case 113: case 115: case 122: out.push([v, v1]); break;
+        case 114: out.push([v, avg(v1, v2)]); break;                             // enerjiyle v1'den v2'ye
+        case 116: out.push([v1, (v2 * v3) / 2]); break;                          // skill sayısıyla 0'dan v2*v3'e
+        case 117: out.push([v, avg((5 / v1) * v2, v2)]); break;                  // antrenman seviyeleri toplamıyla
+        default: if (e.type < 100) out.push([e.type, v]);
+      }
     });
     return out;
   }
@@ -317,7 +325,9 @@
     g.deck.main.forEach((cid) => bonus.set(cid, 12));
     (g.deck.budget || []).forEach((cid) => { if (!bonus.has(cid)) bonus.set(cid, 6); });
     Object.values(g.alternates || {}).flat().forEach((cid) => { if (!bonus.has(cid)) bonus.set(cid, 3); });
-    const W = { 1: 1, 8: 1.5, 2: 0.3, 19: 0.4, 15: 0.5, 16: 0.3, 3: 8, 4: 8, 5: 8, 6: 8, 7: 8, 18: 0.1, 14: 0.1 };
+    // Etki ağırlıkları: antrenmanı doğrudan büyütenler ağır, yardımcı etkiler hafif
+    const W = { 1: 1, 8: 1.5, 2: 0.3, 19: 0.4, 15: 0.5, 16: 0.3, 3: 8, 4: 8, 5: 8, 6: 8, 7: 8, 18: 0.1, 14: 0.1,
+                17: 2, 25: 0.2, 26: 0.2, 27: 0.3, 28: 0.3, 30: 3, 31: 2 };
     const deckTypes = new Set([...g.deck.main, g.deck.flex].map((cid) => (DATA.cardById[cid] || {}).type).filter(Boolean));
     const scoreCache = new Map();
     const score = (r) => {
@@ -453,8 +463,11 @@
     if (s.startsWith("eff:")) {
       const id = Number(s.slice(4));
       const val = (c) => {
+        const lv = levelFor(c, cardState.uncap);
         const e = c.effects.find(([eid]) => eid === id);
-        return e ? (effectAt(e.slice(1), levelFor(c, cardState.uncap)).value ?? -1) : -1;
+        const base = e ? effectAt(e.slice(1), lv).value : null;
+        const extra = uniquePlain(c, lv)[id] || 0;
+        return base === null && !extra ? -1 : (base || 0) + extra;
       };
       return list.sort((a, b) => val(b) - val(a) || b.release.localeCompare(a.release));
     }
@@ -531,17 +544,33 @@
     return `<h4>Özel bonus · Lvl ${daDe(c.unique.level)} açılır</h4><p>${parts.join(" ")}</p>`;
   }
 
+  // Kartın verilen seviyede açık olan, koşulsuz (sabit) özel bonusları: {etki: değer}
+  function uniquePlain(c, lv) {
+    const out = {};
+    if (c.unique && lv >= c.unique.level) {
+      c.unique.effects.forEach((e) => { if (e.type < 100 && DATA.effects[e.type]) out[e.type] = (out[e.type] || 0) + e.value; });
+    }
+    return out;
+  }
+
   function cardBox(c) {
     const key = "c" + c.id;
     const open = openKey === key;
     const lv = levelFor(c, cardState.uncap);
     const sortId = cardState.sort.startsWith("eff:") ? Number(cardState.sort.slice(4)) : null;
     const effs = cardEffects(c, lv);
-    const active = effs.filter((e) => e.value !== null && e.value !== 0);
+    // Seviyede açılan özel bonusun koşulsuz katkısı ilgili satıra "+5 özel" olarak eklenir
+    const uq = uniquePlain(c, lv);
+    effs.forEach((e) => { e.extra = uq[e.id] || 0; });
+    Object.keys(uq).map(Number).filter((id) => !effs.some((e) => e.id === id)).forEach((id) => {
+      const info = DATA.effects[id] || { name: "Etki " + id, pct: false };
+      effs.push({ id, name: info.name, pct: info.pct, value: 0, extra: uq[id] });
+    });
+    const active = effs.filter((e) => (e.value !== null && e.value !== 0) || e.extra);
     const locked = effs.filter((e) => e.value === null);
     active.sort((a, b) => (b.id === sortId) - (a.id === sortId));
     const shown = open ? active : active.slice(0, 5);
-    const row = (e) => `<li class="${e.id === sortId ? "hl" : ""} ${e.id === FAN_BONUS ? "fan" : ""}"><span>${esc(e.name)}</span><b>${fmtEffect(e, e.value)}</b></li>`;
+    const row = (e) => `<li class="${e.id === sortId ? "hl" : ""} ${e.id === FAN_BONUS ? "fan" : ""}"><span>${esc(e.name)}</span><b>${e.value ? fmtEffect(e, e.value) : ""}${e.extra ? `<i class="uq" title="Özel bonustan">+${e.extra}${e.pct ? "%" : ""} özel</i>` : ""}</b></li>`;
     const lockedRows = open ? locked.map((e) => `<li class="locked"><span>${esc(e.name)}</span><span>Lvl ${daDe(e.unlock)}</span></li>`).join("") : "";
     const hidden = active.length - shown.length;
     return `<article class="box card ${esc(c.type)} ${open ? "open" : ""}" data-key="${key}" tabindex="0" aria-expanded="${open}">

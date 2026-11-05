@@ -603,3 +603,6 @@ a.box { display: block; color: inherit; text-decoration: none; }
 .toggle.small .knob { width: 34px; height: 20px; }
 .toggle.small .knob::after { width: 14px; height: 14px; }
 .toggle.small.on .knob::after { transform: translateX(14px); }
+
+/* etki satırında özel bonustan gelen ek değer */
+.eff li .uq { font-style: normal; font-weight: 900; font-size: 11px; color: var(--pink-deep); background: var(--pink-soft); padding: 0 6px; border-radius: var(--pill); margin-left: 6px; white-space: nowrap; }
