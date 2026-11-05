@@ -31,7 +31,7 @@
 }
 
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
 body {
   margin: 0;
   background: var(--bg);
@@ -520,22 +520,33 @@ a.box { display: block; color: inherit; text-decoration: none; }
 .toggle.on .knob { background: var(--green); }
 .toggle.on .knob::after { transform: translateX(18px); }
 
-/* takım stat satırları */
-.mini { grid-template-columns: 18px 1fr auto !important; }
+/* takım stat satırları: sabit yükseklik ve sabit sayı sütunu, düğmeye basınca sayfa kaymaz */
+.mini { grid-template-columns: 18px 1fr 40px !important; height: 20px; }
 .mini .sico { width: 16px; height: 16px; vertical-align: 0; }
 .mini .sico svg { width: 10px; height: 10px; }
-.mini-bar { position: relative; }
-.mini-bar .sb-fill { position: relative; }
-.rec-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--pill); opacity: .3; }
-.rec-fill.Speed { background: var(--t-speed); }
-.rec-fill.Stamina { background: var(--t-stamina); }
-.rec-fill.Power { background: var(--t-power); }
-.rec-fill.Guts { background: var(--t-guts); }
-.rec-fill.Wit { background: var(--t-wit); }
-.mini.cmp .mini-bar { height: 8px; }
-.mini b small { font-weight: 700; color: var(--ink-soft); margin-left: 2px; font-size: 10px; }
+.mini-bar { position: relative; height: 6px; }
+.mini-bar .sb-fill { position: absolute; left: 0; top: 0; height: 100%; }
+/* karşılaştırma: iki ince çubuk, üstte senin statın, altta rehberin önerdiği (beyaza yakın ton) */
+.mini-bar.two {
+  height: 7px; border-radius: 3px; overflow: visible;
+  background: linear-gradient(var(--grey-soft) 0 3px, transparent 3px 4px, var(--grey-soft) 4px 7px);
+}
+.mini-bar.two .sb-fill { height: 3px; }
+.rec-fill { position: absolute; left: 0; top: 4px; height: 3px; border-radius: var(--pill); }
+.rec-fill.Speed { background: color-mix(in srgb, var(--t-speed) 38%, #fff); }
+.rec-fill.Stamina { background: color-mix(in srgb, var(--t-stamina) 38%, #fff); }
+.rec-fill.Power { background: color-mix(in srgb, var(--t-power) 38%, #fff); }
+.rec-fill.Guts { background: color-mix(in srgb, var(--t-guts) 38%, #fff); }
+.rec-fill.Wit { background: color-mix(in srgb, var(--t-wit) 38%, #fff); }
+.mini-v { display: grid; justify-items: end; line-height: 1; }
+.mini-v small { font-weight: 700; color: var(--ink-soft); font-size: 9px; margin-top: 1px; }
 .mini b.ok { color: var(--green-deep); }
 .mini b.low { color: var(--pink-deep); }
+/* düğmeye basınca çubuklar soldan uzayarak gelir */
+@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.team.anim .sb-fill, .team.anim .rec-fill { transform-origin: left center; animation: grow .55s cubic-bezier(.2, .8, .2, 1) both; }
+.team.anim .rec-fill { animation-delay: .08s; }
+@media (prefers-reduced-motion: reduce) { .team.anim .sb-fill, .team.anim .rec-fill { animation: none; } }
 
 /* ---------- skill açıklama kutusu ---------- */
 .sktag, .sk[data-skill] { cursor: help; transition: background .12s, box-shadow .12s; }
@@ -568,3 +579,7 @@ a.box { display: block; color: inherit; text-decoration: none; }
   .grid { grid-template-columns: 1fr; }
   .reset { margin-left: 0; }
 }
+
+/* takım kutusu: karşılaştırma açık/kapalı aynı yükseklik */
+.mini-v { height: 20px; align-content: center; }
+.mini-v small:empty { display: none; }

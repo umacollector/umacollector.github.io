@@ -394,13 +394,69 @@
     return list.sort(by);
   }
 
+  // Türkçe bulunma eki: 30'da, 40'ta, 50'de, 35'te
+  function daDe(n) {
+    const u = n % 10, t = n % 100;
+    const units = { 1: "de", 2: "de", 3: "te", 4: "te", 5: "te", 6: "da", 7: "de", 8: "de", 9: "da" };
+    const tens = { 0: "da", 10: "da", 20: "de", 30: "da", 40: "ta", 50: "de", 60: "ta", 70: "te", 80: "de", 90: "da" };
+    return `${n}'${u ? units[u] : tens[t] || "da"}`;
+  }
+
+  // Özel bonusların açıklaması (GameTora'nın şablonları temel alınarak Türkçeleştirildi)
+  function uniqueEffectText(e) {
+    const info = (id) => DATA.effects[id] || { name: "Etki " + id, pct: false };
+    const nm = (id) => esc(info(id).name);
+    const ef = (id, v) => `${nm(id)} +${v}${info(id).pct ? "%" : ""}`;
+    const v = e.value, v1 = e.value_1, v2 = e.value_2, v3 = e.value_3, v4 = e.value_4;
+    switch (e.type) {
+      case 101: {
+        const two = v3 ? `${ef(v1, v2)} ve ${ef(v3, v4)}` : ef(v1, v2);
+        return v === 100 ? `Dostluk göstergesi doluyken ${two} verir.` : `Dostluk göstergesi en az ${v} iken ${two} verir.`;
+      }
+      case 102: return `Dostluk göstergesi en az ${v} iken ve kart kendi türü dışındaki bir antrenmandayken ${ef(8, v1)} verir.`;
+      case 103: return `Destede en az ${v} farklı türde kart varsa ${ef(8, v1)} verir.`;
+      case 104: return `Her ${v.toLocaleString("tr-TR")} fan için ${ef(8, 1)} verir, ${(v * v1).toLocaleString("tr-TR")} fanda en fazla ${ef(8, v1)} olur.`;
+      case 105: return `Destedeki her kart için o kartın türündeki başlangıç statını +${v} artırır. Pal ve Group kartları her statı +${v1} artırır.`;
+      case 106: return `Bu kartla yapılan her dostluk antrenmanında ${ef(v1, v2)} verir. En fazla ${v} kez, toplamda ${ef(v1, v * v2)}.`;
+      case 107: return `Enerjin ne kadar azsa o kadar çok ${nm(v)} verir.`;
+      case 108: {
+        let a = v2, b = 100; while (b) { const r = a % b; a = b; b = r; }
+        const step = v2 / a, energyStep = 100 / a, maxE = v1 + (v4 - v3) * 100 / v2;
+        return `${nm(v)} +${v3}% verir. Maksimum enerji ${v1} değerini her ${energyStep} puan geçtiğinde +${step}% daha ekler, ${maxE} enerjide en fazla +${v4}% olur.`;
+      }
+      case 109: return `Destedeki kartların toplam dostluğunda her ${v1} puan için ${nm(v)} +1% verir, 600'de en fazla +${Math.round(600 / v1)}% olur.`;
+      case 110: return `Aynı antrenmandaki her destek kartı için ${ef(v, v1)} verir.`;
+      case 111: return `Antrenmanın her seviyesi için ${ef(v, v1)} verir.`;
+      case 112: return `%${v} ihtimalle o antrenmanın başarısızlık oranını sıfırlar.`;
+      case 113: return `Dostluk antrenmanına katılınca ${ef(v, v1)} verir.`;
+      case 114: return `Enerjiye göre ${nm(v)} verir: 0 enerjide +${v1}%, 100 ve üstünde +${v2}%.`;
+      case 115: return `Destedeki tüm kartlara ${ef(v, v1)} verir.`;
+      case 116: {
+        const kind = v === 1 ? "hız" : v === 3 ? "dayanıklılık" : "belirli";
+        return `Sahip olunan her ${kind} skill'i için ${ef(v1, v2)} verir, ${v3} skill'de en fazla ${ef(v1, v2 * v3)}.`;
+      }
+      case 117: return `Antrenmanların toplam seviyesi arttıkça daha çok ${nm(v)} verir, en fazla +${v2}.`;
+      case 118: return `Dostluk göstergesi en az ${v1} iken bu kart aynı anda ${v + 1} antrenmanda birden görünebilir.`;
+      case 119: return `Dostluk göstergesi en az ${v2} iken destedeki tüm kartların antrenmanlarda görünme ihtimali artar.`;
+      case 120: return `Dostluk göstergesi en az ${v1} iken destedeki her kart için o kartın türündeki stat bonusunu artırır, stat başına en fazla ${v3}. Pal ve Group kartları skill puanı verir.`;
+      case 121: return `Tüm kartlar antrenmandan +${v} fazladan dostluk kazanır, bu kartla aynı antrenmandaysalar +${v1}.`;
+      case 122: return `Bu kartla birlikte antrenman yapan kartlara bir sonraki tur ${ef(v, v1)} verir.`;
+      case 9991: return "İpuçlarından kazanılan statları artırır.";
+      default: {
+        const i = DATA.effects[e.type];
+        return i ? `${esc(i.name)}${v ? ` +${v}${i.pct ? "%" : ""}` : ""}.` : "";
+      }
+    }
+  }
+
   function uniqueText(c) {
     if (!c.unique) return "";
-    const parts = c.unique.effects.map((e) => {
-      const info = DATA.effects[e.type];
-      return info && e.type < 100 ? `${esc(info.name)} +${e.value}${info.pct ? "%" : ""}` : "Özel koşullu etki";
-    });
-    return `<h4>Özel bonus (Lvl ${c.unique.level}'de açılır)</h4><p>${parts.join(", ")}</p>`;
+    const plain = c.unique.effects.filter((e) => e.type < 100 && DATA.effects[e.type]);
+    const special = c.unique.effects.filter((e) => !(e.type < 100 && DATA.effects[e.type]));
+    const parts = [];
+    if (plain.length) parts.push(plain.map((e) => { const i = DATA.effects[e.type]; return `${esc(i.name)} +${e.value}${i.pct ? "%" : ""}`; }).join(", ") + " verir.");
+    special.forEach((e) => { const t = uniqueEffectText(e); if (t) parts.push(t); });
+    return `<h4>Özel bonus · Lvl ${daDe(c.unique.level)} açılır</h4><p>${parts.join(" ")}</p>`;
   }
 
   function cardBox(c) {
@@ -414,7 +470,7 @@
     active.sort((a, b) => (b.id === sortId) - (a.id === sortId));
     const shown = open ? active : active.slice(0, 5);
     const row = (e) => `<li class="${e.id === sortId ? "hl" : ""} ${e.id === FAN_BONUS ? "fan" : ""}"><span>${esc(e.name)}</span><b>${fmtEffect(e, e.value)}</b></li>`;
-    const lockedRows = open ? locked.map((e) => `<li class="locked"><span>${esc(e.name)}</span><span>Lvl ${e.unlock}'de</span></li>`).join("") : "";
+    const lockedRows = open ? locked.map((e) => `<li class="locked"><span>${esc(e.name)}</span><span>Lvl ${daDe(e.unlock)}</span></li>`).join("") : "";
     const hidden = active.length - shown.length;
     return `<article class="box card ${esc(c.type)} ${open ? "open" : ""}" data-key="${key}" tabindex="0" aria-expanded="${open}">
       <div class="card-top">
@@ -485,9 +541,9 @@
   }
 
   function msgHtml() {
+    // Mesaj sayfadan ayrılana kadar yerinde kalır (düğmelere basınca kaybolup sayfayı kaydırmasın)
     if (!lastMsg) return "";
-    const m = lastMsg; lastMsg = null;
-    return `<div class="msg ${m.ok ? "ok" : "err"}">${esc(m.msg)}</div>`;
+    return `<div class="msg ${lastMsg.ok ? "ok" : "err"}">${esc(lastMsg.msg)}</div>`;
   }
 
   const localNote = `<p class="hint">Yüklediğin dosyalar şimdilik sadece bu tarayıcıda saklanıyor. Hesap sistemi gelince giriş yaptığın her cihazda görünecek.</p>`;
@@ -553,6 +609,7 @@
   }
 
   let teamCompare = store.get("teamCompare", false);
+  let teamAnim = false;   // sadece düğmeye basılınca çubuklar animasyonla gelir
 
   function renderTeam() {
     const t = INV.team;
@@ -571,8 +628,8 @@
         const stats = r.stats.map((v, i) => {
           const ok = rec ? v >= rec[i] : null;
           return `<span class="mini ${rec ? "cmp" : ""}">${statIcon(STATS[i])}
-            <span class="mini-bar">${rec ? `<span class="rec-fill ${STATS[i]}" style="width:${pct(rec[i])}%"></span>` : ""}<span class="sb-fill ${STATS[i]}" style="width:${pct(v)}%"></span></span>
-            <b class="${ok === null ? "" : ok ? "ok" : "low"}">${v}${rec ? `<small>/ ${esc(recRaw[i])}</small>` : ""}</b></span>`;
+            <span class="mini-bar ${rec ? "two" : ""}"><span class="sb-fill ${STATS[i]}" style="width:${pct(v)}%"></span>${rec ? `<span class="rec-fill ${STATS[i]}" style="width:${pct(rec[i])}%"></span>` : ""}</span>
+            <b class="mini-v ${ok === null ? "" : ok ? "ok" : "low"}">${v}${rec ? `<small>${esc(recRaw[i])}</small>` : ""}</b></span>`;
         }).join("");
         return `<a class="tslot ${r.slot === "ACE" ? "ace" : ""}" ${u ? `href="#uma/${u.id}"` : ""}>
           ${r.slot === "ACE" ? `<span class="ace-tag">ACE</span>` : ""}
@@ -583,7 +640,6 @@
           <span class="ts-pts">${r.points ? r.points.toLocaleString("tr-TR") + " puan" : "puan okunamadı"}</span>
           ${rk && rk.next ? `<span class="rank-prog" title="${esc(rk.name)} → ${esc(rk.next.name)}"><span style="width:${prog}%"></span></span>
             <span class="ts-next">${esc(rk.next.name)} için ${(rk.next.min - r.points).toLocaleString("tr-TR")} puan</span>` : ""}
-          ${teamCompare ? `<span class="ts-guide">${gf ? `Rehber: ${esc(gf.uma.title)} · ${esc(gf.g.team_trials)}` : "Bu Uma için rehber yok"}</span>` : ""}
           <span class="ts-stats">${stats}</span>
         </a>`;
       }).join("")}</div>`;
@@ -598,9 +654,8 @@
       ${t ? `<div class="team-bar">
           <button type="button" class="toggle ${teamCompare ? "on" : ""}" id="teamCompare" aria-pressed="${teamCompare}">
             <span class="knob" aria-hidden="true"></span>Önerilen statlarla karşılaştır</button>
-          ${teamCompare ? `<span class="hint">Açık renkli çubuk rehberin önerdiği stat. Yeşil sayı hedefe ulaşmış, pembe sayı altında.</span>` : ""}
         </div>
-        <section class="team">${cats.map(col).join("")}</section>
+        <section class="team ${teamAnim ? "anim" : ""}">${cats.map(col).join("")}</section>
         <button type="button" class="reset danger" id="teamClear">Takımı bu tarayıcıdan sil</button>` : ""}`;
   }
 
@@ -674,7 +729,7 @@
 
   app.addEventListener("click", (ev) => {
     const tg = ev.target.closest && ev.target.closest("#teamCompare");
-    if (tg) { teamCompare = !teamCompare; store.set("teamCompare", teamCompare); render(); return; }
+    if (tg) { teamCompare = !teamCompare; store.set("teamCompare", teamCompare); teamAnim = true; render(); teamAnim = false; return; }
     if (ev.target.id === "invClear" || ev.target.id === "teamClear") {
       const keys = ev.target.id === "invClear" ? ["umas", "cards"] : ["team"];
       keys.forEach((k) => { INV[k] = null; store.set("inv." + k, null); });
@@ -720,6 +775,7 @@
   });
   window.addEventListener("hashchange", () => {
     closeMenu();
+    lastMsg = null;
     const keepOpen = location.hash === "#kartlar" && openKey;
     if (!keepOpen) openKey = null;
     render();
