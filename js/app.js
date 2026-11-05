@@ -27,6 +27,75 @@
     set(k, v) { try { localStorage.setItem("umauma." + k, JSON.stringify(v)); } catch (e) { /* yok say */ } },
   };
 
+  /* ---------------- envanter (Uma Collector export'ları) ---------------- */
+  // Şimdilik bu tarayıcıda saklanır; hesap sistemi gelince hesaba taşınacak.
+  const INV = { umas: store.get("inv.umas", null), cards: store.get("inv.cards", null), team: store.get("inv.team", null) };
+  const invKey = (name, title) => norm(name) + "|" + norm(String(title || "").replace(/^\[|\]$/g, ""));
+  let ownedUma = new Map(), ownedCard = new Map();
+
+  function rebuildOwned() {
+    ownedUma = new Map(); ownedCard = new Map();
+    (INV.umas?.rows || []).forEach((r) => { if (r.id) ownedUma.set(r.id, r); });
+    (INV.cards?.rows || []).forEach((r) => { if (r.id) ownedCard.set(r.id, r); });
+  }
+
+  // Uma Collector'ın txt tablosunu okur: başlık satırı, tire satırı, sonra satırlar.
+  function parseExport(text) {
+    const lines = text.replace(/\r/g, "").split("\n");
+    const dashIdx = lines.findIndex((l) => /^-+(\s{2}-+)*\s*$/.test(l.trim()) && l.trim().length > 3);
+    if (dashIdx < 1) return null;
+    const spans = [];
+    const re = /-+/g; let m;
+    while ((m = re.exec(lines[dashIdx]))) spans.push([m.index, m.index + m[0].length]);
+    const cut = (line, i) => line.slice(spans[i][0], i + 1 < spans.length ? spans[i + 1][0] : undefined).trim();
+    const heads = spans.map((_, i) => cut(lines[dashIdx - 1], i));
+    const rows = [];
+    for (const line of lines.slice(dashIdx + 1)) {
+      if (!line.trim()) break;
+      const r = {};
+      heads.forEach((h, i) => { r[h] = cut(line, i); });
+      rows.push(r);
+    }
+    const dateM = (lines[0] || "").match(/okuma:\s*([0-9-]+ [0-9:]+)/);
+    let kind = null;
+    if (heads.includes("Potential")) kind = "umas";
+    else if (heads.includes("Uncap")) kind = "cards";
+    else if (heads.includes("Kategori")) kind = "team";
+    return { kind, rows, date: dateM ? dateM[1] : "" };
+  }
+
+  function importExport(text) {
+    const p = parseExport(text);
+    if (!p || !p.kind) return { ok: false, msg: "Bu dosya tanınmadı. Uma Collector'ın export klasöründeki umauma.txt, umacard.txt ya da umateam.txt dosyalarından birini seç." };
+    let rows, miss = 0;
+    if (p.kind === "umas") {
+      const idx = new Map(DATA.umas.map((u) => [invKey(u.name, u.title), u.id]));
+      rows = p.rows.map((r) => {
+        const id = idx.get(invKey(r["İsim"], r["Ünvan"])) || null;
+        if (!id) miss++;
+        return { id, name: r["İsim"], title: r["Ünvan"], stars: Number(r["Yıldız"]) || 0, potential: Number(r["Potential"]) || 0 };
+      });
+    } else if (p.kind === "cards") {
+      const idx = new Map(DATA.cards.map((c) => [invKey(c.name, c.title), c.id]));
+      rows = p.rows.map((r) => {
+        const id = idx.get(invKey(r["İsim"], r["Ünvan"])) || null;
+        if (!id) miss++;
+        return { id, name: r["İsim"], title: r["Ünvan"], level: Number(r["Seviye"]) || 0, uncap: Number(r["Uncap"]) || 0 };
+      });
+    } else {
+      rows = p.rows.map((r) => ({
+        cat: r["Kategori"], slot: r["Sıra"], name: r["İsim"], epithet: r["Lakap"], points: Number(r["Puan"]) || 0,
+        stats: STATS.map((s) => Number(r[s]) || 0),
+        uma: (DATA.umas.find((u) => norm(u.name) === norm(r["İsim"])) || {}).id || null,
+      }));
+    }
+    INV[p.kind] = { date: p.date, rows };
+    store.set("inv." + p.kind, INV[p.kind]);
+    rebuildOwned();
+    const label = { umas: "Uma", cards: "kart", team: "takım Uma'sı" }[p.kind];
+    return { ok: true, kind: p.kind, msg: `${rows.length} ${label} yüklendi${miss ? `, ${miss} tanesi sitedeki listeyle eşleşmedi` : ""}.` };
+  }
+
   const umaState = { q: "", stars: new Set(), apt: new Set(), minGrade: "A", sort: "new", guideOnly: false };
   const cardState = { q: "", types: new Set(), rar: new Set(), uncap: store.get("uncap", 4), sort: "new" };
   let openKey = null;
@@ -77,10 +146,18 @@
   }
   const growthHtml = (u) => u.growth.map((v, i) => v ? `<span class="gr">${STATS[i]} +${v}%</span>` : "").join("");
 
+  function ownBadge(id) {
+    if (!INV.cards) return "";
+    const o = ownedCard.get(id);
+    return o ? `<span class="own yes">Sende · LB${o.uncap}</span>` : `<span class="own no">Sende yok</span>`;
+  }
+
   function cardMini(id, extra = "") {
     const c = DATA.cardById[id];
     if (!c) return `<div class="cmini missing">Kart bulunamadı</div>`;
-    return `<a class="cmini ${extra}" href="#kartlar" data-card="${c.id}" title="${esc(c.name + " " + c.title)}">
+    const ownCls = INV.cards ? (ownedCard.has(id) ? "has" : "lack") : "";
+    return `<a class="cmini ${extra} ${ownCls}" href="#kartlar" data-card="${c.id}" title="${esc(c.name + " " + c.title)}">
+      ${ownBadge(id)}
       <img src="${cardImg(c)}" alt="" ${hideBroken}>
       <span class="cm-txt"><span class="cm-name">${esc(c.name)}</span><span class="cm-title">${esc(c.title)}</span>
       <span class="cm-badges"><span class="rar ${c.rarity}">${c.rarity}</span><span class="type ${esc(c.type)}">${esc(c.type)}</span></span></span>
@@ -108,8 +185,10 @@
 
   function umaBox(u) {
     const g = DATA.guides[u.id];
-    return `<a class="box uma" href="#uma/${u.id}">
+    const own = ownedUma.get(u.id);
+    return `<a class="box uma ${own ? "owned" : ""}" href="#uma/${u.id}">
       ${u.guide ? `<span class="ribbon">Rehber</span>` : ""}
+      ${own ? `<span class="own yes corner">Sende · Pot ${own.potential}</span>` : ""}
       <div class="uma-top">
         <img class="uma-thumb" src="${umaImg(u)}" alt="" loading="lazy" ${hideBroken}>
         <div class="uma-id">
@@ -312,7 +391,7 @@
       <div class="card-top">
         <img class="card-img" src="${cardImg(c)}" alt="" loading="lazy" ${hideBroken}>
         <div class="card-id">
-          <div class="badges"><span class="rar ${c.rarity}">${c.rarity}</span><span class="type ${esc(c.type)}">${esc(c.type)}</span></div>
+          <div class="badges"><span class="rar ${c.rarity}">${c.rarity}</span><span class="type ${esc(c.type)}">${esc(c.type)}</span>${ownedCard.has(c.id) ? `<span class="own yes">Sende · LB${ownedCard.get(c.id).uncap}</span>` : ""}</div>
           <div class="name">${esc(c.name)}</div><div class="title">${esc(c.title)}</div>
           <div class="lvl">Lvl ${lv}${hidden > 0 ? ` · ${hidden} etki daha` : ""}</div>
         </div>
