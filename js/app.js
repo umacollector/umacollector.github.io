@@ -276,12 +276,47 @@
       <span class="sk-main">${icon}<span>${esc(s.name)}</span></span>${base}</li>`;
   }
 
+  /* ---------------- Fanfarming desteleri ---------------- */
+  // Fan kasmada (Independent Training) yarışı uygunluk kazandırır; deste yalnızca fanı büyütür.
+  // Puan: Fan Bonus, yanında biraz Race Bonus. Aynı karakterden iki kart ve Uma'nın kendi kartı yok.
+  function fanValue(c, lv) {
+    const eff = cardEffects(c, lv);
+    const v = (id) => { const e = eff.find((x) => x.id === id); return (e && e.value) || 0; };
+    const uq = uniquePlain(c, lv);
+    return (v(16) + (uq[16] || 0)) + 0.3 * (v(15) + (uq[15] || 0));
+  }
+  function fanDeck(g, pool, levelOf) {
+    const trainee = DATA.umaById[g.id];
+    const used = new Set(trainee ? [norm(trainee.name)] : []);
+    const ranked = pool.map((c) => ({ c, s: fanValue(c, levelOf(c)) })).filter((x) => x.s > 0)
+      .sort((a, b) => b.s - a.s || RARITIES.indexOf(a.c.rarity) - RARITIES.indexOf(b.c.rarity));
+    const out = [];
+    for (const { c } of ranked) {
+      if (used.has(norm(c.name))) continue;
+      used.add(norm(c.name)); out.push(c.id);
+      if (out.length === 6) break;
+    }
+    while (out.length < 6) out.push(null);
+    return out;
+  }
+  const fanBest = (g) => fanDeck(g, DATA.cards, (c) => levelFor(c, 4));
+  const fanBudget = (g) => fanDeck(g, DATA.cards.filter((c) => c.rarity !== "SSR"), (c) => levelFor(c, 4));
+  const fanOwned = (g) => fanDeck(g, [...ownedCard.values()].map((r) => DATA.cardById[r.id]).filter(Boolean),
+    (c) => { const r = ownedCard.get(c.id); return invUseLevel ? Math.max(1, r.level || 1) : levelFor(c, r.uncap || 0); });
+  // Destedeki toplam Fan Bonus (gösterim için)
+  function fanTotal(ids, levelOf) {
+    return ids.filter(Boolean).reduce((t, id) => { const c = DATA.cardById[id]; const lv = levelOf(c);
+      const e = cardEffects(c, lv).find((x) => x.id === 16); return t + ((e && e.value) || 0) + (uniquePlain(c, lv)[16] || 0); }, 0);
+  }
+
+  let deckMode = store.get("deckMode", "genel");
+
   function deckRow(title, ids, flex, note, headExtra) {
     const slots = ids.map((id) => cardMini(id)).join("");
     return `<div class="deck">
       <div class="deck-head"><h3>${title}</h3>${headExtra || ""}</div>
-      <div class="deck-row">${slots}
-        <div class="flex-slot">${cardMini(flex, "key")}<span class="flex-tag">6. slot · esnek</span><span class="key-tag">★ Kritik kart</span></div>
+      <div class="deck-row ${flex ? "" : "no-flex"}">${slots}
+        ${flex ? `<div class="flex-slot">${cardMini(flex, "key")}<span class="flex-tag">6. slot · esnek</span><span class="key-tag">★ Kritik kart</span></div>` : ""}
       </div>
       ${note ? `<p class="hint">${esc(note)}</p>` : ""}
     </div>`;
@@ -421,12 +456,27 @@
           <div class="skcols">${skillCols}</div>
         </section>
         <section class="panel wide">
-          <h2>Desteler</h2>
-          ${deckRow("Önerilen deste", g.deck.main, g.deck.flex)}
-          ${g.deck.budget && g.deck.budget.length ? deckRow("Budget deste", g.deck.budget, g.deck.flex) : ""}
-          ${INV.cards ? deckRow("Envanterinden", inventoryDeck(g), g.deck.flex, "",
-              `<button type="button" class="toggle small ${invUseLevel ? "on" : ""}" id="invLevel" aria-pressed="${invUseLevel}"><span class="knob" aria-hidden="true"></span>Seviyeyi dikkate al</button>`)
-            : `<div class="deck"><h3>Envanterinden</h3><p class="hint"><a href="#envanter">Kartlarını yükle</a>, sendeki kartlarla bir deste kurulsun.</p></div>`}
+          <div class="deck-mode-head"><h2>Desteler</h2>
+            <span class="seg" role="group" aria-label="Deste amacı">
+              <button type="button" data-deckmode="genel" class="${deckMode === "genel" ? "on" : ""}">Genel</button>
+              <button type="button" data-deckmode="fan" class="${deckMode === "fan" ? "on" : ""}">Fanfarming</button>
+            </span></div>
+          ${(() => {
+            const lvToggle = `<button type="button" class="toggle small ${invUseLevel ? "on" : ""}" id="invLevel" aria-pressed="${invUseLevel}"><span class="knob" aria-hidden="true"></span>Seviyeyi dikkate al</button>`;
+            const noInv = `<div class="deck"><h3>Envanterinden</h3><p class="hint"><a href="#envanter">Kartlarını yükle</a>, sendeki kartlarla bir deste kurulsun.</p></div>`;
+            if (deckMode === "fan") {
+              const mlb = (c) => levelFor(c, 4);
+              const ownLv = (c) => { const r = ownedCard.get(c.id); return invUseLevel ? Math.max(1, r.level || 1) : levelFor(c, r.uncap || 0); };
+              const best = fanBest(g), budget = fanBudget(g);
+              const tag = (n) => `<span class="fan-total">Toplam Fan Bonus %${n}</span>`;
+              return deckRow("En yüksek Fan Bonus", best, null, "", tag(fanTotal(best, mlb)))
+                + deckRow("Budget · SR ve R", budget, null, "", tag(fanTotal(budget, mlb)))
+                + (INV.cards ? (() => { const own = fanOwned(g); return deckRow("Envanterinden", own, null, "", tag(fanTotal(own, ownLv)) + lvToggle); })() : noInv);
+            }
+            return deckRow("Önerilen deste", g.deck.main, g.deck.flex)
+              + (g.deck.budget && g.deck.budget.length ? deckRow("Budget deste", g.deck.budget, g.deck.flex) : "")
+              + (INV.cards ? deckRow("Envanterinden", inventoryDeck(g), g.deck.flex, "", lvToggle) : noInv);
+          })()}
         </section>
         <section class="panel wide">
           <h2>Yedek kartlar</h2>
@@ -1340,6 +1390,11 @@
     }
     const bt = ev.target.closest && ev.target.closest("[data-btab]");
     if (bt) { bannerTab = bt.dataset.btab; render(); return; }
+    const dm = ev.target.closest && ev.target.closest("[data-deckmode]");
+    if (dm) {   // sayfa yerinden kaymasın: başlığın ekrandaki konumu korunur
+      const top = app.querySelector(".deck-mode-head").getBoundingClientRect().top;
+      deckMode = dm.dataset.deckmode; store.set("deckMode", deckMode); render();
+      window.scrollBy(0, app.querySelector(".deck-mode-head").getBoundingClientRect().top - top); return; }
     const il = ev.target.closest && ev.target.closest("#invLevel");
     if (il) { invUseLevel = !invUseLevel; store.set("invUseLevel", invUseLevel); render(); return; }
     const tg = ev.target.closest && ev.target.closest("#teamCompare");

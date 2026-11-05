@@ -988,3 +988,10 @@ span.pf-avatar.face, span.pm-av.face { display: block; }
 .eff-swap li { animation: effSwap .3s ease; }
 @keyframes effSwap { from { opacity: .35; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .lv-pill { transition: none; } .eff-swap li { animation: none; } }
+
+/* deste amacı seçimi ve fanfarming */
+.deck-mode-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.deck-mode-head h2 { margin: 0; }
+.deck-row.no-flex { padding-bottom: 0; }
+.deck-head .fan-total { font-size: 12px; font-weight: 900; color: var(--pink-deep); background: var(--pink-soft); padding: 3px 10px; border-radius: var(--pill); margin-left: auto; }
+.deck-head .fan-total + .toggle { margin-left: 0; }
