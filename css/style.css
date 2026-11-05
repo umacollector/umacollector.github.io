@@ -974,3 +974,8 @@ span.pf-avatar.face, span.pm-av.face { display: block; }
 .card-pop .box.card.float-pop:hover { transform: none; }
 .card-pop .box.card.float-pop .more { display: block; }
 .card-pop-note { margin: 10px 0 0; text-align: center; font-size: 12px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
+
+/* kart penceresindeki seviye seçimi */
+.lv-seg { margin-top: 2px; padding: 2px; }
+.lv-seg button { font-size: 12px; padding: 4px 10px; }
+.lv-seg button:disabled { cursor: default; }

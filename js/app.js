@@ -600,23 +600,42 @@
     const c = DATA.cardById[id];
     if (!c) return;
     const own = ownedCard.get(id);
-    const lv = own ? Math.max(1, own.level || 1) : levelFor(c, 4);
+    const ownLv = own ? Math.max(1, own.level || 1) : null;
+    const maxLv = levelFor(c, 4);
+    let useOwn = !!own;                       // envanterde varsa varsayılan: sendeki seviye
     const bg = document.createElement("div");
     bg.className = "modal-bg card-pop";
-    bg.innerHTML = `<div class="card-pop-in" role="dialog" aria-modal="true" aria-label="${esc(c.name)}">
-        ${cardBox(c, true, lv)}
-        <p class="card-pop-note">${own ? `Sendeki seviye: Lvl ${lv} · LB${own.uncap}` : `En yüksek seviye (MLB): Lvl ${lv}`} · kapatmak için herhangi bir yere dokun</p>
-      </div>`;
-    const box = bg.querySelector(".box.card");
-    box.classList.add("float-pop");
-    box.removeAttribute("tabindex");
-    const hint = box.querySelector(".close-hint"); if (hint) hint.remove();
+    const inner = document.createElement("div");
+    inner.className = "card-pop-in";
+    inner.setAttribute("role", "dialog");
+    inner.setAttribute("aria-modal", "true");
+    inner.setAttribute("aria-label", c.name);
+    bg.appendChild(inner);
+    const draw = () => {
+      inner.innerHTML = cardBox(c, true, useOwn ? ownLv : maxLv);
+      const box = inner.querySelector(".box.card");
+      box.classList.add("float-pop");
+      box.removeAttribute("tabindex");
+      const hint = box.querySelector(".close-hint"); if (hint) hint.remove();
+      const lvl = box.querySelector(".lvl");
+      lvl.innerHTML = own
+        ? `<span class="seg lv-seg" role="group" aria-label="Seviye">
+             <button type="button" data-lvpick="own" class="${useOwn ? "on" : ""}">Lvl ${ownLv} · Sende</button>
+             <button type="button" data-lvpick="max" class="${useOwn ? "" : "on"}">MLB · Lvl ${maxLv}</button></span>`
+        : `<span class="seg lv-seg"><button type="button" class="on" disabled>MLB · Lvl ${maxLv}</button></span>`;
+    };
+    draw();
     document.body.appendChild(bg);
     document.body.classList.add("modal-open");
     const close = () => { bg.remove(); document.body.classList.remove("modal-open"); document.removeEventListener("keydown", onKey); };
     const onKey = (e) => { if (e.key === "Escape") close(); };
     document.addEventListener("keydown", onKey);
-    bg.addEventListener("click", (ev) => { if (!ev.target.closest("[data-skill]")) close(); });
+    bg.addEventListener("click", (ev) => {
+      const pick = ev.target.closest("[data-lvpick]");
+      if (pick) { useOwn = pick.dataset.lvpick === "own"; draw(); return; }
+      if (ev.target.closest("[data-skill], .lv-seg")) return;
+      close();
+    });
   }
 
   /* ---------------- kart açma: üstte yüzen kutu + beyaz perde ---------------- */
