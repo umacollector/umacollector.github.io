@@ -466,6 +466,77 @@ a.box { display: block; color: inherit; text-decoration: none; }
 
 @media (max-width: 900px) { .team { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); } }
 
+/* ---------- stat ikonları ---------- */
+.sico {
+  display: inline-grid; place-items: center; flex-shrink: 0;
+  width: 20px; height: 20px; border-radius: 50%; color: #fff; font-style: normal; vertical-align: -5px;
+}
+.sico svg { width: 13px; height: 13px; fill: currentColor; }
+.sico.Speed { background: var(--t-speed); }
+.sico.Stamina { background: var(--t-stamina); }
+.sico.Power { background: var(--t-power); }
+.sico.Guts { background: var(--t-guts); }
+.sico.Wit { background: var(--t-wit); }
+.sico.Pal { background: var(--t-pal); }
+.sico.Group { background: var(--t-group); }
+.sico.plain { width: auto; height: auto; background: none; color: inherit; margin-right: 3px; vertical-align: -2px; }
+.sico.plain svg { width: 1.1em; height: 1.1em; }
+.chip .sico { width: 18px; height: 18px; margin-right: 6px; vertical-align: -4px; }
+.sb-l .sico { width: 22px; height: 22px; }
+.sb-l .sico svg { width: 14px; height: 14px; }
+.gr .sico.plain { color: var(--green-deep); }
+.prio .sico.plain { margin-right: 0; }
+.prio .sico.plain svg { width: 18px; height: 18px; }
+
+/* ---------- rank rozetleri ---------- */
+.rank {
+  display: inline-grid; place-items: center; min-width: 34px; height: 24px; padding: 0 8px;
+  border-radius: var(--pill); font-weight: 900; font-size: 13px; letter-spacing: .3px; color: #fff;
+  box-shadow: 0 2px 6px rgba(30, 20, 50, .15), inset 0 0 0 2px rgba(255, 255, 255, .55);
+}
+.rank.u { background: linear-gradient(135deg, #a77bff, var(--pink), var(--yellow)); }
+.rank.s { background: linear-gradient(135deg, var(--yellow), #ffb02e 55%, var(--pink)); text-shadow: 0 1px 2px rgba(150, 70, 0, .35); }
+.rank.a { background: linear-gradient(135deg, var(--pink), var(--pink-deep)); }
+.rank.b { background: linear-gradient(135deg, #7cd6a4, var(--green)); }
+.rank.low { background: #b9bcc8; }
+.rank-corner { position: absolute; top: 8px; right: 8px; }
+.rank-prog { width: 100%; height: 6px; border-radius: var(--pill); background: var(--grey-soft); overflow: hidden; margin-top: 2px; }
+.rank-prog span { display: block; height: 100%; border-radius: var(--pill); background: linear-gradient(90deg, var(--yellow), var(--pink)); }
+.ts-next { font-size: 11px; color: var(--ink-soft); font-weight: 700; }
+.ts-guide { font-size: 11px; font-weight: 800; color: var(--green-deep); background: var(--green-soft); padding: 1px 8px; border-radius: var(--pill); }
+
+/* karşılaştırma düğmesi */
+.team-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; }
+.toggle {
+  display: inline-flex; align-items: center; gap: 10px; padding: 7px 16px 7px 7px; border-radius: var(--pill);
+  border: 2px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-weight: 800; cursor: pointer;
+}
+.toggle .knob { position: relative; width: 40px; height: 22px; border-radius: var(--pill); background: #d9dbe3; transition: background .15s; }
+.toggle .knob::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .2); transition: transform .15s;
+}
+.toggle.on { border-color: var(--green); }
+.toggle.on .knob { background: var(--green); }
+.toggle.on .knob::after { transform: translateX(18px); }
+
+/* takım stat satırları */
+.mini { grid-template-columns: 18px 1fr auto !important; }
+.mini .sico { width: 16px; height: 16px; vertical-align: 0; }
+.mini .sico svg { width: 10px; height: 10px; }
+.mini-bar { position: relative; }
+.mini-bar .sb-fill { position: relative; }
+.rec-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--pill); opacity: .3; }
+.rec-fill.Speed { background: var(--t-speed); }
+.rec-fill.Stamina { background: var(--t-stamina); }
+.rec-fill.Power { background: var(--t-power); }
+.rec-fill.Guts { background: var(--t-guts); }
+.rec-fill.Wit { background: var(--t-wit); }
+.mini.cmp .mini-bar { height: 8px; }
+.mini b small { font-weight: 700; color: var(--ink-soft); margin-left: 2px; font-size: 10px; }
+.mini b.ok { color: var(--green-deep); }
+.mini b.low { color: var(--pink-deep); }
+
 /* ---------- skill açıklama kutusu ---------- */
 .sktag, .sk[data-skill] { cursor: help; transition: background .12s, box-shadow .12s; }
 .sktag:hover, .sktag:focus-visible { background: var(--pink-soft); outline: none; box-shadow: inset 0 0 0 1.5px var(--pink); }

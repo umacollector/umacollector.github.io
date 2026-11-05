@@ -22,6 +22,21 @@
   const FAN_BONUS = 16;
   const STAT_BAR_MAX = 1600;
 
+  /* ---------------- stat ikonları (UmaUma'nın kendi çizimleri) ---------------- */
+  const ICON_PATHS = {
+    Speed: '<path d="M3 15.2c0-.9.6-1.6 1.4-1.8l4.4-1.1 2.1-4.1 3.2 1.1-1 3 3.6 1.2c2.6.9 4.3 2.1 4.3 4.1v.6H3z"/><path d="M3 18.6h18V21H3z"/>',
+    Stamina: '<path d="M12 21s-7.4-4.5-9.2-9.1C1.6 8.7 3.7 5 7.1 5c2 0 3.4 1.1 4.9 3 1.5-1.9 2.9-3 4.9-3 3.4 0 5.5 3.7 4.3 6.9C19.4 16.5 12 21 12 21z"/>',
+    Power: '<path d="M1.5 10.5h2V8.2h3.2v7.6H3.5v-2.3h-2zM22.5 10.5h-2V8.2h-3.2v7.6h3.2v-2.3h2z"/><path d="M7.5 10.6h9v2.8h-9z"/>',
+    Guts: '<path d="M12.2 2c.9 3.4 5.3 5.6 5.3 10.6a5.5 5.5 0 0 1-11 0c0-2.2 1-3.8 2.2-4.9 0 2.1.9 3.2 2.1 3.4-.9-3.3.2-6.4 1.4-9.1z"/>',
+    Wit: '<path d="M12 3.5 1 8.8l11 5.3 8.6-4.1v5.8h1.9V8.8z"/><path d="M5.6 12.9v3.6c0 1.9 2.9 3.4 6.4 3.4s6.4-1.5 6.4-3.4v-3.6L12 16z"/>',
+    Pal: '<circle cx="12" cy="8" r="4.3"/><path d="M4.5 21c.6-4.3 3.6-7 7.5-7s6.9 2.7 7.5 7z"/>',
+    Group: '<circle cx="8" cy="8.5" r="3.4"/><circle cx="16.5" cy="8.5" r="3.4"/><path d="M1.5 20c.5-3.6 3-5.8 6.5-5.8s6 2.2 6.5 5.8zM14.2 14.6c.7-.3 1.5-.4 2.3-.4 3.5 0 6 2.2 6.5 5.8h-6.7c-.3-2.2-1-4-2.1-5.4z"/>',
+  };
+  // "w": rozet içinde beyaz ikon; varsayılan: renkli daire içinde beyaz ikon
+  const statIcon = (name, mode) => ICON_PATHS[name]
+    ? `<i class="sico ${mode === "w" ? "plain" : esc(name)}" aria-hidden="true"><svg viewBox="0 0 24 24">${ICON_PATHS[name]}</svg></i>` : "";
+  const typeBadge = (t) => `<span class="type ${esc(t)}">${statIcon(t, "w")}${esc(t)}</span>`;
+
   const store = {
     get(k, d) { try { const v = localStorage.getItem("umauma." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem("umauma." + k, JSON.stringify(v)); } catch (e) { /* yok say */ } },
@@ -162,7 +177,7 @@
       `<span class="apt-l">${label}</span><span class="apt-r">${keys.map(([k, n]) =>
         `<span class="g g${esc(u.apt[k])} ${focus.includes(k) ? "focus" : ""}">${n}<b>${esc(u.apt[k])}</b></span>`).join("")}</span>`).join("")}</div>`;
   }
-  const growthHtml = (u) => u.growth.map((v, i) => v ? `<span class="gr">${STATS[i]} +${v}%</span>` : "").join("");
+  const growthHtml = (u) => u.growth.map((v, i) => v ? `<span class="gr">${statIcon(STATS[i], "w")}${STATS[i]} +${v}%</span>` : "").join("");
 
   function ownBadge(id) {
     if (!INV.cards) return "";
@@ -178,7 +193,7 @@
       ${ownBadge(id)}
       <img src="${cardImg(c)}" alt="" ${hideBroken}>
       <span class="cm-txt"><span class="cm-name">${esc(c.name)}</span><span class="cm-title">${esc(c.title)}</span>
-      <span class="cm-badges"><span class="rar ${c.rarity}">${c.rarity}</span><span class="type ${esc(c.type)}">${esc(c.type)}</span></span></span>
+      <span class="cm-badges"><span class="rar ${c.rarity}">${c.rarity}</span>${typeBadge(c.type)}</span></span>
     </a>`;
   }
 
@@ -300,15 +315,15 @@
       const raw = g.stats[k];
       const n = parseInt(raw, 10) || 0;
       const w = Math.min(100, Math.round(n / STAT_BAR_MAX * 100));
-      return `<div class="sbar"><span class="sb-l"><i class="sdot ${STATS[i]}"></i>${STATS[i]}</span>
+      return `<div class="sbar"><span class="sb-l">${statIcon(STATS[i])}${STATS[i]}</span>
         <span class="sb-track"><span class="sb-fill ${STATS[i]}" style="width:${w}%"></span></span>
         <b class="sb-v">${esc(raw)}</b></div>`;
     }).join("");
     const skillCols = Object.entries(g.skills).map(([grp, list]) =>
       `<div class="skcol"><h3>${esc(grp)}</h3><ul class="sklist">${list.map(skillChip).join("")}</ul></div>`).join("");
     const alts = Object.entries(g.alternates).map(([type, ids]) =>
-      `<div class="alt-group"><h3><span class="type ${esc(type)}">${esc(type)}</span></h3><div class="alt-row">${ids.map((i) => cardMini(i, "small")).join("")}</div></div>`).join("");
-    const prio = g.parents.priority.map((s, i) => `<span class="prio ${esc(s)}"><i>${i + 1}</i>${esc(s)}</span>`).join(`<span class="gt">›</span>`);
+      `<div class="alt-group"><h3>${typeBadge(type)}</h3><div class="alt-row">${ids.map((i) => cardMini(i, "small")).join("")}</div></div>`).join("");
+    const prio = g.parents.priority.map((s, i) => `<span class="prio ${esc(s)}"><i>${i + 1}</i>${statIcon(s, "w")}${esc(s)}</span>`).join(`<span class="gt">›</span>`);
     app.innerHTML = hero + `
       <div class="guide">
         <section class="panel">
@@ -336,7 +351,7 @@
           ${alts}
         </section>
         <section class="panel wide">
-          <h2>Veteran (ebeveyn) Umalar</h2>
+          <h2>Veteran Umalar</h2>
           <div class="prio-row">${prio}</div>
           <h3>Pembe spark (uygunluk)</h3>
           <div class="taglist">${g.parents.pink.map((p) => `<span class="tag pinkt">${esc(p)}</span>`).join("")}</div>
@@ -405,7 +420,7 @@
       <div class="card-top">
         <img class="card-img" src="${cardImg(c)}" alt="" loading="lazy" ${hideBroken}>
         <div class="card-id">
-          <div class="badges"><span class="rar ${c.rarity}">${c.rarity}</span><span class="type ${esc(c.type)}">${esc(c.type)}</span>${ownedCard.has(c.id) ? `<span class="own yes">Sende · LB${ownedCard.get(c.id).uncap}</span>` : ""}</div>
+          <div class="badges"><span class="rar ${c.rarity}">${c.rarity}</span>${typeBadge(c.type)}${ownedCard.has(c.id) ? `<span class="own yes">Sende · LB${ownedCard.get(c.id).uncap}</span>` : ""}</div>
           <div class="name">${esc(c.name)}</div><div class="title">${esc(c.title)}</div>
           <div class="lvl">Lvl ${lv}${hidden > 0 ? ` · ${hidden} etki daha` : ""}</div>
         </div>
@@ -440,7 +455,7 @@
           </select>
         </div>
         <div class="frow"><span class="flabel">Tür</span>
-          ${TYPES.map((t) => chip(`<span class="dot" style="background:var(--t-${t.toLowerCase()})"></span>${t}`, cardState.types.has(t), `data-type="${t}"`)).join("")}
+          ${TYPES.map((t) => chip(`${statIcon(t)}${t}`, cardState.types.has(t), `data-type="${t}"`)).join("")}
         </div>
         <div class="frow"><span class="flabel">Nadirlik</span>
           ${RARITIES.map((r) => chip(r, cardState.rar.has(r), `data-rar="${r}"`, "yellow")).join("")}
@@ -498,7 +513,7 @@
       return `<a class="inv-card" href="#kartlar" ${d ? `data-card="${d.id}"` : ""}>
         ${d ? `<img src="${cardImg(d)}" alt="" loading="lazy" ${hideBroken}>` : `<span class="noimg">?</span>`}
         <span class="ic-name">${esc(r.name)}</span>
-        <span class="ic-meta">${d ? `<span class="type ${esc(d.type)}">${esc(d.type)}</span>` : ""}<span class="dia" title="Uncap ${r.uncap}">${dia}</span></span>
+        <span class="ic-meta">${d ? `${typeBadge(d.type)}` : ""}<span class="dia" title="Uncap ${r.uncap}">${dia}</span></span>
         <span class="ic-lvl">Lvl ${r.level}</span>
       </a>`;
     }).join("");
@@ -518,22 +533,58 @@
       ${u || c ? `<button type="button" class="reset danger" id="invClear">Envanteri bu tarayıcıdan sil</button>` : ""}`;
   }
 
+  /* ---------------- rank (oyunun değerlendirme puanı aralıkları) ---------------- */
+  function rankOf(points) {
+    const R = DATA.ranks || [];
+    const i = R.findIndex(([min, max]) => points >= min && points <= max);
+    if (i < 0) return null;
+    const [min, , name] = R[i];
+    const next = R[i + 1] ? { name: R[i + 1][2], min: R[i + 1][0] } : null;
+    return { name, min, next };
+  }
+  const rankTier = (n) => n.startsWith("U") ? "u" : n.startsWith("S") ? "s" : n.startsWith("A") ? "a" : n.startsWith("B") ? "b" : "low";
+  const rankBadge = (n, big) => `<span class="rank ${rankTier(n)} ${big ? "big" : ""}">${esc(n)}</span>`;
+
+  // Takımdaki Uma'nın rehberi: aynı isimde rehberi olanlardan, kategorisi tutanı tercih et.
+  function guideFor(name, cat) {
+    const cands = DATA.umas.filter((u) => norm(u.name) === norm(name) && DATA.guides[u.id]);
+    const hit = cands.find((u) => DATA.guides[u.id].team_trials === cat) || cands[0];
+    return hit ? { uma: hit, g: DATA.guides[hit.id] } : null;
+  }
+
+  let teamCompare = store.get("teamCompare", false);
+
   function renderTeam() {
     const t = INV.team;
     const cats = ["Sprint", "Mile", "Medium", "Long", "Dirt"];
     const total = t ? t.rows.reduce((s, r) => s + r.points, 0) : 0;
+    const pct = (x) => Math.min(100, Math.round(x / STAT_BAR_MAX * 100));
     const col = (cat) => {
       const rows = t.rows.filter((r) => r.cat === cat);
       return `<div class="tcol"><h3>${cat}</h3>${rows.map((r) => {
         const u = DATA.umaById[r.uma];
-        const max = Math.max(...r.stats, 1);
+        const rk = r.points ? rankOf(r.points) : null;
+        const gf = teamCompare ? guideFor(r.name, cat) : null;
+        const rec = gf ? STAT_KEYS.map((k) => parseInt(gf.g.stats[k], 10) || 0) : null;
+        const recRaw = gf ? STAT_KEYS.map((k) => gf.g.stats[k]) : null;
+        const prog = rk && rk.next ? Math.round((r.points - rk.min) / (rk.next.min - rk.min) * 100) : 100;
+        const stats = r.stats.map((v, i) => {
+          const ok = rec ? v >= rec[i] : null;
+          return `<span class="mini ${rec ? "cmp" : ""}">${statIcon(STATS[i])}
+            <span class="mini-bar">${rec ? `<span class="rec-fill ${STATS[i]}" style="width:${pct(rec[i])}%"></span>` : ""}<span class="sb-fill ${STATS[i]}" style="width:${pct(v)}%"></span></span>
+            <b class="${ok === null ? "" : ok ? "ok" : "low"}">${v}${rec ? `<small>/ ${esc(recRaw[i])}</small>` : ""}</b></span>`;
+        }).join("");
         return `<a class="tslot ${r.slot === "ACE" ? "ace" : ""}" ${u ? `href="#uma/${u.id}"` : ""}>
           ${r.slot === "ACE" ? `<span class="ace-tag">ACE</span>` : ""}
+          ${rk ? `<span class="rank-corner">${rankBadge(rk.name)}</span>` : ""}
           ${u ? `<img src="${umaImg(u)}" alt="" loading="lazy" ${hideBroken}>` : `<span class="noimg">?</span>`}
           <span class="ts-name">${esc(r.name)}</span>
           <span class="ts-ep">${esc(r.epithet)}</span>
-          <span class="ts-pts">${r.points.toLocaleString("tr-TR")} puan</span>
-          <span class="ts-stats">${r.stats.map((v, i) => `<span class="mini"><i class="sdot ${STATS[i]}"></i><span class="mini-bar"><span class="sb-fill ${STATS[i]}" style="width:${Math.round(v / 1600 * 100)}%"></span></span><b>${v}</b></span>`).join("")}</span>
+          <span class="ts-pts">${r.points ? r.points.toLocaleString("tr-TR") + " puan" : "puan okunamadı"}</span>
+          ${rk && rk.next ? `<span class="rank-prog" title="${esc(rk.name)} → ${esc(rk.next.name)}"><span style="width:${prog}%"></span></span>
+            <span class="ts-next">${esc(rk.next.name)} için ${(rk.next.min - r.points).toLocaleString("tr-TR")} puan</span>` : ""}
+          ${teamCompare ? `<span class="ts-guide">${gf ? `Rehber: ${esc(gf.uma.title)} · ${esc(gf.g.team_trials)}` : "Bu Uma için rehber yok"}</span>` : ""}
+          <span class="ts-stats">${stats}</span>
         </a>`;
       }).join("")}</div>`;
     };
@@ -544,7 +595,12 @@
         ${dropZone("fTeam", "Takımını yükle", "umateam.txt", t ? `${t.rows.length} Uma · okuma ${esc(t.date)}` : "Henüz yüklenmedi")}
       </section>
       ${localNote}
-      ${t ? `<section class="team">${cats.map(col).join("")}</section>
+      ${t ? `<div class="team-bar">
+          <button type="button" class="toggle ${teamCompare ? "on" : ""}" id="teamCompare" aria-pressed="${teamCompare}">
+            <span class="knob" aria-hidden="true"></span>Önerilen statlarla karşılaştır</button>
+          ${teamCompare ? `<span class="hint">Açık renkli çubuk rehberin önerdiği stat. Yeşil sayı hedefe ulaşmış, pembe sayı altında.</span>` : ""}
+        </div>
+        <section class="team">${cats.map(col).join("")}</section>
         <button type="button" class="reset danger" id="teamClear">Takımı bu tarayıcıdan sil</button>` : ""}`;
   }
 
@@ -617,6 +673,8 @@
   }));
 
   app.addEventListener("click", (ev) => {
+    const tg = ev.target.closest && ev.target.closest("#teamCompare");
+    if (tg) { teamCompare = !teamCompare; store.set("teamCompare", teamCompare); render(); return; }
     if (ev.target.id === "invClear" || ev.target.id === "teamClear") {
       const keys = ev.target.id === "invClear" ? ["umas", "cards"] : ["team"];
       keys.forEach((k) => { INV[k] = null; store.set("inv." + k, null); });
