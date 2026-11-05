@@ -288,13 +288,15 @@
 
   // Özel bonusun (Lvl'de açılan) kabaca karşılığı: hangi etkiyi ne kadar verdiği. Koşullu olanlar
   // ortalama bir değerle sayılır (ör. "en fazla %20" → 10).
-  function uniqueBonus(c) {
+  // deckTypes: kurulacak destedeki farklı kart türleri (koşulu türe bağlı özel bonuslar için)
+  function uniqueBonus(c, deckTypes) {
     const out = [];
     (c.unique ? c.unique.effects : []).forEach((e) => {
       const v = e.value, v1 = e.value_1, v2 = e.value_2, v3 = e.value_3, v4 = e.value_4;
       if (e.type < 100) out.push([e.type, v]);
       else if (e.type === 101) { out.push([v1, v2]); if (v3) out.push([v3, v4]); }
-      else if (e.type === 102 || e.type === 103) out.push([8, v1]);
+      else if (e.type === 102) out.push([8, v1]);
+      else if (e.type === 103) { if (deckTypes && deckTypes.size >= v) out.push([8, v1]); }   // en az v farklı tür şartı
       else if (e.type === 104) out.push([8, v1 / 2]);
       else if (e.type === 106) out.push([v1, (v * v2) / 2]);
       else if (e.type === 108) out.push([v, v3]);
@@ -316,6 +318,7 @@
     (g.deck.budget || []).forEach((cid) => { if (!bonus.has(cid)) bonus.set(cid, 6); });
     Object.values(g.alternates || {}).flat().forEach((cid) => { if (!bonus.has(cid)) bonus.set(cid, 3); });
     const W = { 1: 1, 8: 1.5, 2: 0.3, 19: 0.4, 15: 0.5, 16: 0.3, 3: 8, 4: 8, 5: 8, 6: 8, 7: 8, 18: 0.1, 14: 0.1 };
+    const deckTypes = new Set([...g.deck.main, g.deck.flex].map((cid) => (DATA.cardById[cid] || {}).type).filter(Boolean));
     const scoreCache = new Map();
     const score = (r) => {
       if (!scoreCache.has(r.id)) {
@@ -324,7 +327,7 @@
         const lv = invUseLevel ? Math.max(1, r.level || 1) : levelFor(c, r.uncap || 0);
         const tot = {};
         cardEffects(c, lv).forEach((e) => { tot[e.id] = (tot[e.id] || 0) + (e.value || 0); });
-        if (c.unique && lv >= c.unique.level) uniqueBonus(c).forEach(([id, val]) => { tot[id] = (tot[id] || 0) + val; });
+        if (c.unique && lv >= c.unique.level) uniqueBonus(c, deckTypes).forEach(([id, val]) => { tot[id] = (tot[id] || 0) + val; });
         let s = 0;
         Object.entries(W).forEach(([id, w]) => { s += (tot[id] || 0) * w; });
         scoreCache.set(r.id, s + (bonus.get(r.id) || 0));
