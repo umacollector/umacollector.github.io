@@ -995,3 +995,102 @@ span.pf-avatar.face, span.pm-av.face { display: block; }
 .deck-row.no-flex { padding-bottom: 0; }
 .deck-head .fan-total { font-size: 12px; font-weight: 900; color: var(--pink-deep); background: var(--pink-soft); padding: 3px 10px; border-radius: var(--pill); margin-left: auto; }
 .deck-head .fan-total + .toggle { margin-left: 0; }
+
+/* ---------- Araçlar menüsü ---------- */
+.tools { position: relative; }
+.tools-btn { display: inline-flex; align-items: center; gap: 4px; border: 0; font: inherit; font-weight: 800; cursor: pointer; }
+.tools-btn[aria-expanded="true"] .caret { transform: rotate(180deg); }
+.tools-btn .caret { transition: transform .15s; }
+.tools-menu {
+  position: absolute; left: 0; top: calc(100% + 8px); width: 300px; z-index: 25; padding: 6px; display: grid; gap: 2px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 12px 32px rgba(30, 20, 50, .16); animation: drop .14s ease-out;
+}
+.tools-menu[hidden] { display: none; }
+.tm-item { display: flex; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 12px; color: var(--ink); text-decoration: none; }
+a.tm-item:hover, a.tm-item:focus-visible { background: var(--pink-soft); outline: none; }
+.tm-item b { display: block; font-weight: 900; font-size: 14px; }
+.tm-item small { display: block; font-size: 12px; color: var(--ink-soft); font-weight: 700; }
+.tm-ico { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--grey-soft); font-size: 16px; flex-shrink: 0; }
+.tm-item.soon { opacity: .55; cursor: default; }
+
+/* ---------- pist haritaları ---------- */
+.tk-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.tk-card { text-align: left; font: inherit; color: inherit; display: grid; gap: 6px; width: 100%; }
+.tk-mini { height: 120px; display: grid; place-items: center; background: var(--surface-2); border-radius: 12px; padding: 6px; }
+.tk-mini .tk-map { width: 100%; height: 100%; }
+.tk-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.tk-chips.center { justify-content: center; margin: -8px 0 8px; }
+.chip-s { font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: var(--pill); background: var(--grey-soft); }
+.chip-s.turf { background: var(--green-soft); color: var(--green-deep); }
+.chip-s.dirt { background: var(--yellow-soft); color: var(--yellow-ink); }
+.tk-races { font-size: 12px; line-height: 1.7; }
+.tk-race { display: inline-block; min-width: 30px; text-align: center; font-size: 10px; font-weight: 900; padding: 0 6px; margin-right: 5px; border-radius: var(--pill); color: #fff; background: #9aa0b0; }
+.tk-race.g-G1 { background: #3a7bff; } .tk-race.g-G2 { background: var(--pink-deep); } .tk-race.g-G3 { background: var(--green); }
+.tk-modal { width: min(920px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; }
+.tk-big { background: var(--surface-2); border-radius: 18px; padding: 10px; }
+.tk-big .tk-map { width: 100%; height: auto; max-height: 360px; display: block; margin: 0 auto; }
+.tk-ph { transition: opacity .15s; } .tk-ph.dim { opacity: .18; }
+.tk-corner circle { fill: var(--surface); stroke: var(--ink-soft); stroke-width: 2; }
+.tk-corner text { fill: var(--ink); font-weight: 900; text-anchor: middle; dominant-baseline: central; font-family: inherit; }
+.tk-spurt { fill: #fff; stroke: var(--pink-deep); stroke-width: 4; }
+.tk-lab { fill: var(--ink-soft); font-weight: 900; text-anchor: middle; font-family: inherit; }
+.tk-legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 10px 0 4px; font-size: 12px; font-weight: 800; }
+.tk-legend i { display: inline-block; width: 18px; height: 6px; border-radius: 3px; margin-right: 6px; vertical-align: 2px; }
+.tk-legend i.sp { width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: inset 0 0 0 3px var(--pink-deep); vertical-align: -1px; }
+.tk-strip { margin-top: 10px; display: grid; gap: 4px; }
+.tk-row { display: grid; grid-template-columns: 56px 1fr; gap: 8px; align-items: center; }
+.tk-rl { font-size: 11px; font-weight: 900; color: var(--ink-soft); }
+.tk-track { position: relative; height: 28px; background: var(--grey-soft); border-radius: 8px; overflow: hidden; }
+.tk-seg { position: absolute; top: 0; bottom: 0; display: grid; place-items: center; font-size: 11px; font-weight: 800; white-space: nowrap; overflow: hidden; border-right: 2px solid var(--surface); color: #1b1b1f; }
+.tk-seg.ph0 { background: color-mix(in srgb, var(--green) 55%, var(--surface)); }
+.tk-seg.ph1 { background: color-mix(in srgb, var(--yellow) 60%, var(--surface)); }
+.tk-seg.ph2 { background: color-mix(in srgb, #ff9a3c 55%, var(--surface)); }
+.tk-seg.ph3 { background: color-mix(in srgb, var(--pink) 55%, var(--surface)); }
+.tk-seg.st { background: color-mix(in srgb, #9fb4ff 35%, var(--surface)); }
+.tk-seg.cn { background: color-mix(in srgb, #8a7cff 50%, var(--surface)); }
+.tk-seg.sl-up { background: color-mix(in srgb, #ff7a6b 55%, var(--surface)); }
+.tk-seg.sl-down { background: color-mix(in srgb, #3aa7ff 50%, var(--surface)); }
+.tk-flat { display: grid; place-items: center; height: 100%; font-size: 11px; font-weight: 800; color: var(--ink-soft); }
+.tk-marks .tk-track { background: none; height: 34px; overflow: visible; }
+.tk-tick { position: absolute; top: 18px; transform: translateX(-50%); font-size: 10px; color: var(--ink-soft); font-weight: 700; }
+.tk-mark { position: absolute; top: -100px; bottom: 18px; border-left: 2px dashed; pointer-events: none; }
+.tk-mark b { position: absolute; top: 100%; left: 4px; font-size: 10px; white-space: nowrap; margin-top: -2px; }
+.tk-mark.spurt { border-color: var(--pink-deep); } .tk-mark.spurt b { color: var(--pink-deep); }
+.tk-mark.keep { border-color: var(--ink-soft); } .tk-mark.keep b { color: var(--ink-soft); }
+.tk-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-top: 30px; }
+.tk-info div { background: var(--grey-soft); border-radius: 12px; padding: 8px 12px; display: grid; gap: 2px; font-size: 13px; }
+.tk-info b { font-size: 12px; color: var(--pink-deep); }
+.tk-racelist { display: flex; flex-wrap: wrap; gap: 6px; }
+.tk-racelist .tag { display: inline-flex; align-items: center; }
+@media (max-width: 560px) {
+  .tools-menu { position: fixed; left: 12px; right: 12px; top: 56px; width: auto; }
+  .tk-row { grid-template-columns: 1fr; gap: 2px; }
+  .tk-mark { top: -150px; }
+  .tk-mark b { font-size: 9px; }
+}
+
+/* pist dökümü: işaret yazıları metre etiketlerinin altında */
+.tk-marks .tk-track { height: 50px; }
+.tk-mark { bottom: 32px; }
+.tk-mark b { top: calc(100% + 16px); }
+.tk-info { margin-top: 18px; }
+/* telefonda üst çubuk: Araçlar da sığsın */
+@media (max-width: 480px) {
+  .logo .l2 { display: none; }
+  .tabs { gap: 4px; }
+  .tab { padding: 6px 9px; font-size: 13px; }
+  .tools-btn .caret { width: 12px; height: 12px; }
+}
+@media (max-width: 370px) {
+  .top-in { gap: 6px; padding: 8px 10px; }
+  .tab { padding: 6px 7px; font-size: 12.5px; }
+  .theme-sw { width: 40px; height: 26px; }
+  .theme-sw .ts-knob { width: 18px; height: 18px; }
+  :root[data-theme="dark"] .theme-sw .ts-knob { transform: translateX(14px); }
+}
+.tk-seg { text-overflow: ellipsis; padding: 0 3px; }
+@media (max-width: 560px) {
+  .tk-marks .tk-track { height: 62px; }
+  .tk-mark.spurt b { top: calc(100% + 30px); }
+  .tk-seg { font-size: 10px; }
+}

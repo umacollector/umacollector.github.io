@@ -1341,6 +1341,7 @@
     const h = location.hash;
     const m = h.match(/^#uma\/(\d+)$/);
     if (m) return { page: "uma", id: Number(m[1]) };
+    if (h === "#araclar/pistler") return { page: "pistler" };
     if (["#envanter", "#takim", "#kartlar", "#indir", "#profil"].includes(h)) return { page: h.slice(1) };
     return { page: "umalar" };
   }
@@ -1348,14 +1349,15 @@
   function render(keepFocus) {
     const r = route();
     if (typeof setVeil === "function") { setVeil(false); }
-    const tab = r.page === "uma" ? "umalar" : r.page;
+    const tab = r.page === "uma" ? "umalar" : r.page === "pistler" ? "araclar" : r.page;
     document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.page === tab));
     const focusId = keepFocus && document.activeElement && document.activeElement.id;
     const caret = focusId && document.activeElement.selectionStart;
     const pages = { uma: () => renderUmaPage(r.id), kartlar: renderCards, envanter: renderInventory,
-                    takim: renderTeam, profil: renderProfile, indir: renderDownload, umalar: renderUmas };
+                    takim: renderTeam, profil: renderProfile, indir: renderDownload, umalar: renderUmas,
+                    pistler: () => window.UmaTracks.render(app) };
     pages[r.page]();
-    const titles = { envanter: "Envanterim", takim: "Takımım", profil: "Profil", kartlar: "Kartlar", indir: "Uma Collector" };
+    const titles = { envanter: "Envanterim", takim: "Takımım", profil: "Profil", kartlar: "Kartlar", indir: "Uma Collector", pistler: "Pist Haritaları" };
     document.title = r.page === "uma" && DATA.umaById[r.id] ? `${DATA.umaById[r.id].name} · UmaCollector`
       : titles[r.page] ? `${titles[r.page]} · UmaCollector` : "UmaCollector";
     if (focusId) {
@@ -1367,10 +1369,12 @@
   const toggle = (set, v) => { set.has(v) ? set.delete(v) : set.add(v); };
 
   app.addEventListener("input", (ev) => {
+    if (route().page === "pistler" && window.UmaTracks.input(ev, render)) return;
     if (ev.target.id === "uq") { umaState.q = ev.target.value; render(true); }
     if (ev.target.id === "cq") { cardState.q = ev.target.value; render(true); }
   });
   app.addEventListener("change", (ev) => {
+    if (route().page === "pistler" && window.UmaTracks.input(ev, render)) return;
     if (ev.target.type === "file" && ev.target.files.length) { handleFiles([...ev.target.files]); return; }
     if (ev.target.id === "usort") { umaState.sort = ev.target.value; render(); }
     if (ev.target.id === "csort") { cardState.sort = ev.target.value; render(); }
@@ -1394,6 +1398,7 @@
     }
     const bt = ev.target.closest && ev.target.closest("[data-btab]");
     if (bt) { bannerTab = bt.dataset.btab; render(); return; }
+    if (route().page === "pistler" && window.UmaTracks.handle(ev, render)) return;
     const dm = ev.target.closest && ev.target.closest("[data-deckmode]");
     if (dm) {   // sayfa yerinden kaymasın: başlığın ekrandaki konumu korunur
       const top = app.querySelector(".deck-mode-head").getBoundingClientRect().top;
@@ -1493,6 +1498,14 @@
     else if (ev.key === "ArrowDown") { ev.preventDefault(); items[(i + 1) % items.length].focus(); }
     else if (ev.key === "ArrowUp") { ev.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
   });
+
+  /* ---------------- Araçlar menüsü ---------------- */
+  const tBtn = document.getElementById("toolsBtn"), tMenu = document.getElementById("toolsMenu");
+  const closeTools = () => { tMenu.hidden = true; tBtn.setAttribute("aria-expanded", "false"); };
+  tBtn.addEventListener("click", (ev) => { ev.stopPropagation(); const open = tMenu.hidden; closeMenu(); tMenu.hidden = !open; tBtn.setAttribute("aria-expanded", String(open)); });
+  document.addEventListener("click", (ev) => { if (!tMenu.hidden && !ev.target.closest(".tools")) closeTools(); });
+  document.addEventListener("keydown", (ev) => { if (!tMenu.hidden && ev.key === "Escape") { closeTools(); tBtn.focus(); } });
+  window.addEventListener("hashchange", closeTools);
 
   /* ---------------- tema ---------------- */
   const themeSw = document.getElementById("themeSw");
