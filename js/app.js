@@ -580,7 +580,7 @@
         ${dropZone("fUmas", "Umalarını yükle", "umauma.txt", u ? `${u.rows.length} Uma · okuma ${esc(u.date)}` : "Henüz yüklenmedi")}
         ${dropZone("fCards", "Kartlarını yükle", "umacard.txt", c ? `${c.rows.length} kart · okuma ${esc(c.date)}` : "Henüz yüklenmedi")}
       </section>
-      <p class="hint">Dosyalar Uma Collector'ın export klasöründe (D:\\UmaCollector\\export). Kutuya tıkla ya da dosyayı üstüne sürükle.</p>
+      <p class="hint">Dosyalar Uma Collector'ın export klasöründe: D:\\UmaCollector\\Collector\\export. Kutuya tıkla ya da dosyayı üstüne sürükle.</p>
       ${localNote}
       ${u ? `<section class="panel inv-sec"><h2>Umalarım <span class="count">${u.rows.length} / ${DATA.umas.length}</span></h2>
         <div class="inv-grid umas">${umaTiles}</div></section>` : ""}
