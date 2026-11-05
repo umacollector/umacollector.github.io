@@ -588,3 +588,10 @@ a.box { display: block; color: inherit; text-decoration: none; }
 .rar, .type, .own { display: inline-flex; align-items: center; white-space: nowrap; flex-shrink: 0; line-height: 1.5; }
 .cm-badges { flex-wrap: wrap; row-gap: 4px; }
 .badges { flex-wrap: wrap; row-gap: 4px; }
+
+/* envanter destesinde o türde kart yoksa boş slot */
+.cmini.missing {
+  display: grid; place-items: center; min-height: 160px; padding: 10px; text-align: center;
+  font-size: 12px; font-weight: 800; color: var(--ink-soft);
+  background: #fff; border: 2px dashed var(--line);
+}

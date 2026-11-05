@@ -187,7 +187,7 @@
 
   function cardMini(id, extra = "") {
     const c = DATA.cardById[id];
-    if (!c) return `<div class="cmini missing">Kart bulunamadı</div>`;
+    if (!c) return `<div class="cmini missing">${id === null ? "Bu türde kartın yok" : "Kart bulunamadı"}</div>`;
     const ownCls = INV.cards ? (ownedCard.has(id) ? "has" : "lack") : "";
     return `<a class="cmini ${extra} ${ownCls}" href="#kartlar" data-card="${c.id}" title="${esc(c.name + " " + c.title)}">
       ${ownBadge(id)}
@@ -286,6 +286,44 @@
     </div>`;
   }
 
+  // Envanterden deste: rehberin ana destesindeki türleri izler. Her slot için önce ana deste, sonra
+  // budget, sonra yedek listedeki kartlardan sende olan; hiçbiri yoksa o türde sendeki en güçlü kart.
+  // Oyundaki gibi aynı karakterden iki kart olmaz. 6. slot yine kritik kart (yoksa ödünç alınır).
+  function inventoryDeck(g) {
+    const owned = [...ownedCard.values()].filter((r) => DATA.cardById[r.id]);
+    const tier = new Map();
+    g.deck.main.forEach((cid) => tier.set(cid, 0));
+    (g.deck.budget || []).forEach((cid) => { if (!tier.has(cid)) tier.set(cid, 1); });
+    Object.values(g.alternates || {}).flat().forEach((cid) => { if (!tier.has(cid)) tier.set(cid, 2); });
+    const scoreCache = new Map();
+    const score = (r) => {
+      if (!scoreCache.has(r.id)) {
+        const eff = cardEffects(DATA.cardById[r.id], Math.max(1, r.level || 1));
+        const v = (eid) => { const e = eff.find((x) => x.id === eid); return (e && e.value) || 0; };
+        scoreCache.set(r.id, v(1) + v(8) * 1.5 + v(2) * 0.3 + v(19) * 0.4 + v(15) * 0.5 + v(16) * 0.3
+          + (v(3) + v(4) + v(5) + v(6) + v(7)) * 8 + v(18) * 0.1 + v(14) * 0.1);
+      }
+      return scoreCache.get(r.id);
+    };
+    const rank = (a, b) => ((tier.has(a.id) ? tier.get(a.id) : 3) - (tier.has(b.id) ? tier.get(b.id) : 3)) || (score(b) - score(a));
+    const charOf = (r) => norm(DATA.cardById[r.id].name);
+    const flexCard = DATA.cardById[g.deck.flex];
+    const used = new Set(flexCard ? [norm(flexCard.name)] : []);
+    const types = g.deck.main.map((cid) => (DATA.cardById[cid] || {}).type);
+    const pick = types.map((t) => {
+      const best = owned.filter((r) => DATA.cardById[r.id].type === t && !used.has(charOf(r))).sort(rank)[0];
+      if (best) used.add(charOf(best));
+      return best || null;
+    });
+    // O türde kart kalmadıysa, Pal/Group dışında sendeki en güçlü kartla doldur
+    pick.forEach((r, i) => {
+      if (r) return;
+      const best = owned.filter((x) => !used.has(charOf(x)) && !["Pal", "Group"].includes(DATA.cardById[x.id].type)).sort(rank)[0];
+      if (best) { used.add(charOf(best)); pick[i] = best; }
+    });
+    return pick.map((r) => (r ? r.id : null));
+  }
+
   function renderUmaPage(id) {
     const u = DATA.umaById[id];
     if (!u) { app.innerHTML = `<p class="loading">Bu Uma bulunamadı. <a href="#umalar">Umalar'a dön</a></p>`; return; }
@@ -344,6 +382,8 @@
           <h2>Desteler</h2>
           ${deckRow("Önerilen deste", g.deck.main, g.deck.flex)}
           ${g.deck.budget && g.deck.budget.length ? deckRow("Budget deste", g.deck.budget, g.deck.flex) : ""}
+          ${INV.cards ? deckRow("Envanterinden", inventoryDeck(g), g.deck.flex)
+            : `<div class="deck"><h3>Envanterinden</h3><p class="hint"><a href="#envanter">Kartlarını yükle</a>, sendeki kartlarla bir deste kurulsun.</p></div>`}
         </section>
         <section class="panel wide">
           <h2>Yedek kartlar</h2>
