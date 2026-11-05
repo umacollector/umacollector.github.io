@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UmaUma</title>
+<meta name="description" content="Umamusume Global: tüm Umalar, destek kartları ve Team Trials rehberleri.">
+<link rel="icon" href="assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?b=20261105041031">
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <a class="logo" href="#umalar" aria-label="UmaUma ana sayfa"><span class="l1">Uma</span><span class="l2">Uma</span></a>
+    <nav class="tabs" aria-label="Bölümler">
+      <a class="tab" data-page="umalar" href="#umalar">Umalar</a>
+      <a class="tab" data-page="kartlar" href="#kartlar">Kartlar</a>
+    </nav>
+    <div class="profile">
+      <button type="button" class="profile-btn" id="profileBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="profileMenu">
+        <span class="avatar" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="8" r="4.2" fill="currentColor"/><path d="M3.5 21c.8-4.6 4.3-7 8.5-7s7.7 2.4 8.5 7z" fill="currentColor"/></svg>
+        </span>
+        <span class="profile-name" id="profileName">Profil</span>
+        <svg class="caret" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="profile-menu" id="profileMenu" role="menu" hidden>
+        <a role="menuitem" href="#giris" class="pm-item"><span class="pm-dot pink"></span>Giriş Yap</a>
+        <a role="menuitem" href="#envanter" class="pm-item"><span class="pm-dot yellow"></span>Envanterim</a>
+        <a role="menuitem" href="#takim" class="pm-item"><span class="pm-dot green"></span>Takımım</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="app" class="wrap">
+  <p class="loading">Yükleniyor…</p>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    Sadece Umamusume: Pretty Derby Global sürümündeki içerik. Veriler ve görseller:
+    <a href="https://gametora.com/umamusume" target="_blank" rel="noopener">GameTora</a>, rehberler:
+    <a href="https://game8.co/games/Umamusume-Pretty-Derby" target="_blank" rel="noopener">Game8</a>.
+    UmaUma bir hayran sitesidir, Cygames ile bağlantısı yoktur. Oyun görselleri © Cygames.
+  </div>
+</footer>
+
+<script src="data/data.js?b=20261105041031"></script>
+<script src="js/app.js?b=20261105041031"></script>
+</body>
+</html>
