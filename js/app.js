@@ -442,12 +442,127 @@
       <div class="grid">${list.map(cardBox).join("") || `<div class="empty">Bu filtrelere uyan kart yok.</div>`}</div>`;
   }
 
+  /* ---------------- PROFİL SAYFALARI ---------------- */
+  let lastMsg = null;
+
+  function dropZone(id, title, file, desc) {
+    return `<label class="drop" for="${id}" data-drop="1">
+      <input type="file" id="${id}" accept=".txt,text/plain" multiple hidden>
+      <span class="drop-ico" aria-hidden="true">⬆</span>
+      <span class="drop-t">${title}</span>
+      <span class="drop-f">${file}</span>
+      <span class="hint">${desc}</span>
+    </label>`;
+  }
+
+  function msgHtml() {
+    if (!lastMsg) return "";
+    const m = lastMsg; lastMsg = null;
+    return `<div class="msg ${m.ok ? "ok" : "err"}">${esc(m.msg)}</div>`;
+  }
+
+  const localNote = `<p class="hint">Yüklediğin dosyalar şimdilik sadece bu tarayıcıda saklanıyor. Hesap sistemi gelince giriş yaptığın her cihazda görünecek.</p>`;
+
+  function renderInventory() {
+    const u = INV.umas, c = INV.cards;
+    const umaTiles = (u?.rows || []).map((r) => {
+      const d = DATA.umaById[r.id];
+      return `<a class="inv-uma ${d ? "" : "unknown"}" ${d ? `href="#uma/${d.id}"` : ""}>
+        ${d ? `<img src="${umaImg(d)}" alt="" loading="lazy" ${hideBroken}>` : `<span class="noimg">?</span>`}
+        <span class="iu-name">${esc(r.name)}</span><span class="iu-title">${esc(r.title)}</span>
+        <span class="iu-meta"><span class="stars">${"★".repeat(r.stars)}</span><span class="pot">Pot ${r.potential}</span></span>
+      </a>`;
+    }).join("");
+    const cardRows = (c?.rows || []).slice().sort((a, b) => {
+      const ca = DATA.cardById[a.id], cb = DATA.cardById[b.id];
+      const ra = ca ? RARITIES.indexOf(ca.rarity) : 9, rb = cb ? RARITIES.indexOf(cb.rarity) : 9;
+      return ra - rb || (ca && cb ? TYPES.indexOf(ca.type) - TYPES.indexOf(cb.type) : 0) || b.uncap - a.uncap;
+    });
+    const cardTiles = cardRows.map((r) => {
+      const d = DATA.cardById[r.id];
+      const dia = "◆".repeat(r.uncap) + `<span class="off">${"◆".repeat(4 - r.uncap)}</span>`;
+      return `<a class="inv-card" href="#kartlar" ${d ? `data-card="${d.id}"` : ""}>
+        ${d ? `<img src="${cardImg(d)}" alt="" loading="lazy" ${hideBroken}>` : `<span class="noimg">?</span>`}
+        <span class="ic-name">${esc(r.name)}</span>
+        <span class="ic-meta">${d ? `<span class="type ${esc(d.type)}">${esc(d.type)}</span>` : ""}<span class="dia" title="Uncap ${r.uncap}">${dia}</span></span>
+        <span class="ic-lvl">Lvl ${r.level}</span>
+      </a>`;
+    }).join("");
+    app.innerHTML = `
+      <div class="page-head"><h1>Envanterim</h1></div>
+      ${msgHtml()}
+      <section class="drops">
+        ${dropZone("fUmas", "Umalarını yükle", "umauma.txt", u ? `${u.rows.length} Uma · okuma ${esc(u.date)}` : "Henüz yüklenmedi")}
+        ${dropZone("fCards", "Kartlarını yükle", "umacard.txt", c ? `${c.rows.length} kart · okuma ${esc(c.date)}` : "Henüz yüklenmedi")}
+      </section>
+      <p class="hint">Dosyalar Uma Collector'ın export klasöründe (D:\\UmaCollector\\export). Kutuya tıkla ya da dosyayı üstüne sürükle.</p>
+      ${localNote}
+      ${u ? `<section class="panel inv-sec"><h2>Umalarım <span class="count">${u.rows.length} / ${DATA.umas.length}</span></h2>
+        <div class="inv-grid umas">${umaTiles}</div></section>` : ""}
+      ${c ? `<section class="panel inv-sec"><h2>Kartlarım <span class="count">${c.rows.length} / ${DATA.cards.length}</span></h2>
+        <div class="inv-grid cards">${cardTiles}</div></section>` : ""}
+      ${u || c ? `<button type="button" class="reset danger" id="invClear">Envanteri bu tarayıcıdan sil</button>` : ""}`;
+  }
+
+  function renderTeam() {
+    const t = INV.team;
+    const cats = ["Sprint", "Mile", "Medium", "Long", "Dirt"];
+    const total = t ? t.rows.reduce((s, r) => s + r.points, 0) : 0;
+    const col = (cat) => {
+      const rows = t.rows.filter((r) => r.cat === cat);
+      return `<div class="tcol"><h3>${cat}</h3>${rows.map((r) => {
+        const u = DATA.umaById[r.uma];
+        const max = Math.max(...r.stats, 1);
+        return `<a class="tslot ${r.slot === "ACE" ? "ace" : ""}" ${u ? `href="#uma/${u.id}"` : ""}>
+          ${r.slot === "ACE" ? `<span class="ace-tag">ACE</span>` : ""}
+          ${u ? `<img src="${umaImg(u)}" alt="" loading="lazy" ${hideBroken}>` : `<span class="noimg">?</span>`}
+          <span class="ts-name">${esc(r.name)}</span>
+          <span class="ts-ep">${esc(r.epithet)}</span>
+          <span class="ts-pts">${r.points.toLocaleString("tr-TR")} puan</span>
+          <span class="ts-stats">${r.stats.map((v, i) => `<span class="mini"><i class="sdot ${STATS[i]}"></i><span class="mini-bar"><span class="sb-fill ${STATS[i]}" style="width:${Math.round(v / 1600 * 100)}%"></span></span><b>${v}</b></span>`).join("")}</span>
+        </a>`;
+      }).join("")}</div>`;
+    };
+    app.innerHTML = `
+      <div class="page-head"><h1>Takımım</h1>${t ? `<span class="count">Toplam ${total.toLocaleString("tr-TR")} puan</span>` : ""}</div>
+      ${msgHtml()}
+      <section class="drops one">
+        ${dropZone("fTeam", "Takımını yükle", "umateam.txt", t ? `${t.rows.length} Uma · okuma ${esc(t.date)}` : "Henüz yüklenmedi")}
+      </section>
+      ${localNote}
+      ${t ? `<section class="team">${cats.map(col).join("")}</section>
+        <button type="button" class="reset danger" id="teamClear">Takımı bu tarayıcıdan sil</button>` : ""}`;
+  }
+
+  function renderLogin() {
+    app.innerHTML = `
+      <div class="page-head"><h1>Giriş Yap</h1></div>
+      <section class="panel login-soon">
+        <h2>Hesap sistemi hazırlanıyor</h2>
+        <p>Giriş yapınca envanterin ve takımın hesabına kaydedilecek, her cihazdan görebileceksin.
+        O zamana kadar <a href="#envanter">Envanterim</a> ve <a href="#takim">Takımım</a> sayfaları bu tarayıcıda çalışıyor.</p>
+      </section>`;
+  }
+
+  async function handleFiles(files) {
+    const msgs = [];
+    let ok = true;
+    for (const f of files) {
+      const r = importExport(await f.text());
+      ok = ok && r.ok;
+      msgs.push(`${f.name}: ${r.msg}`);
+    }
+    lastMsg = { ok, msg: msgs.join("  ") };
+    render();
+  }
+
   /* ---------------- yönlendirme ve olaylar ---------------- */
   function route() {
     const h = location.hash;
     const m = h.match(/^#uma\/(\d+)$/);
     if (m) return { page: "uma", id: Number(m[1]) };
-    return { page: h === "#kartlar" ? "kartlar" : "umalar" };
+    if (h === "#envanter" || h === "#takim" || h === "#giris" || h === "#kartlar") return { page: h.slice(1) };
+    return { page: "umalar" };
   }
 
   function render(keepFocus) {
@@ -456,10 +571,12 @@
     document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.page === tab));
     const focusId = keepFocus && document.activeElement && document.activeElement.id;
     const caret = focusId && document.activeElement.selectionStart;
-    if (r.page === "uma") renderUmaPage(r.id);
-    else if (r.page === "kartlar") renderCards();
-    else renderUmas();
-    document.title = r.page === "uma" && DATA.umaById[r.id] ? `${DATA.umaById[r.id].name} · UmaUma` : "UmaUma";
+    const pages = { uma: () => renderUmaPage(r.id), kartlar: renderCards, envanter: renderInventory,
+                    takim: renderTeam, giris: renderLogin, umalar: renderUmas };
+    pages[r.page]();
+    const titles = { envanter: "Envanterim", takim: "Takımım", giris: "Giriş Yap", kartlar: "Kartlar" };
+    document.title = r.page === "uma" && DATA.umaById[r.id] ? `${DATA.umaById[r.id].name} · UmaUma`
+      : titles[r.page] ? `${titles[r.page]} · UmaUma` : "UmaUma";
     if (focusId) {
       const el = document.getElementById(focusId);
       if (el) { el.focus(); if (caret != null && el.setSelectionRange) el.setSelectionRange(caret, caret); }
@@ -473,11 +590,25 @@
     if (ev.target.id === "cq") { cardState.q = ev.target.value; render(true); }
   });
   app.addEventListener("change", (ev) => {
+    if (ev.target.type === "file" && ev.target.files.length) { handleFiles([...ev.target.files]); return; }
     if (ev.target.id === "usort") { umaState.sort = ev.target.value; render(); }
     if (ev.target.id === "csort") { cardState.sort = ev.target.value; render(); }
   });
+  ["dragover", "dragleave", "drop"].forEach((type) => app.addEventListener(type, (ev) => {
+    const zone = ev.target.closest && ev.target.closest("[data-drop]");
+    if (!zone) return;
+    ev.preventDefault();
+    zone.classList.toggle("over", type === "dragover");
+    if (type === "drop" && ev.dataTransfer.files.length) handleFiles([...ev.dataTransfer.files]);
+  }));
+
   app.addEventListener("click", (ev) => {
-    const mini = ev.target.closest("a.cmini[data-card]");
+    if (ev.target.id === "invClear" || ev.target.id === "teamClear") {
+      const keys = ev.target.id === "invClear" ? ["umas", "cards"] : ["team"];
+      keys.forEach((k) => { INV[k] = null; store.set("inv." + k, null); });
+      rebuildOwned(); render(); return;
+    }
+    const mini = ev.target.closest("a.cmini[data-card], a.inv-card[data-card]");
     if (mini) {
       // Rehberdeki karta tıklanınca Kartlar'da o kart açık gelir
       const c = DATA.cardById[Number(mini.dataset.card)];
@@ -516,6 +647,7 @@
     }
   });
   window.addEventListener("hashchange", () => {
+    closeMenu();
     const keepOpen = location.hash === "#kartlar" && openKey;
     if (!keepOpen) openKey = null;
     render();
@@ -523,15 +655,34 @@
     if (target) target.scrollIntoView({ block: "center" }); else window.scrollTo(0, 0);
   });
 
-  Promise.all(["umas", "cards", "effects", "guides"].map((n) => fetch(`data/${n}.json`).then((r) => {
-    if (!r.ok) throw new Error(n);
-    return r.json();
-  }))).then(([umas, cards, effects, guides]) => {
-    Object.assign(DATA, { umas, cards, effects, guides });
-    cards.forEach((c) => { DATA.cardById[c.id] = c; });
-    umas.forEach((u) => { DATA.umaById[u.id] = u; });
-    render();
-  }).catch(() => {
-    app.innerHTML = `<p class="loading">Veriler yüklenemedi. Sayfayı yenilemeyi dene.</p>`;
+  /* ---------------- profil menüsü ---------------- */
+  const pBtn = document.getElementById("profileBtn");
+  const pMenu = document.getElementById("profileMenu");
+  function closeMenu() { pMenu.hidden = true; pBtn.setAttribute("aria-expanded", "false"); }
+  function openMenu() {
+    pMenu.hidden = false; pBtn.setAttribute("aria-expanded", "true");
+    const first = pMenu.querySelector(".pm-item"); if (first) first.focus();
+  }
+  pBtn.addEventListener("click", (ev) => { ev.stopPropagation(); pMenu.hidden ? openMenu() : closeMenu(); });
+  document.addEventListener("click", (ev) => { if (!pMenu.hidden && !ev.target.closest(".profile")) closeMenu(); });
+  document.addEventListener("keydown", (ev) => {
+    if (pMenu.hidden) return;
+    const items = [...pMenu.querySelectorAll(".pm-item")];
+    const i = items.indexOf(document.activeElement);
+    if (ev.key === "Escape") { closeMenu(); pBtn.focus(); }
+    else if (ev.key === "ArrowDown") { ev.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (ev.key === "ArrowUp") { ev.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
   });
+
+  /* ---------------- veri ---------------- */
+  const D = window.UMAUMA_DATA;
+  if (!D) {
+    app.innerHTML = `<p class="loading">Veriler yüklenemedi. Sayfayı yenilemeyi dene.</p>`;
+  } else {
+    Object.assign(DATA, D);
+    DATA.cards.forEach((c) => { DATA.cardById[c.id] = c; });
+    DATA.umas.forEach((u) => { DATA.umaById[u.id] = u; });
+    rebuildOwned();
+    render();
+  }
 })();
