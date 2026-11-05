@@ -1342,6 +1342,9 @@
     const m = h.match(/^#uma\/(\d+)$/);
     if (m) return { page: "uma", id: Number(m[1]) };
     if (h === "#araclar/pistler") return { page: "pistler" };
+    if (h === "#araclar/simulator") return { page: "simulator" };
+    if (h === "#araclar/skiller") return { page: "skiller" };
+    if (h === "#araclar/soy") return { page: "soy" };
     if (["#envanter", "#takim", "#kartlar", "#indir", "#profil"].includes(h)) return { page: h.slice(1) };
     return { page: "umalar" };
   }
@@ -1349,15 +1352,16 @@
   function render(keepFocus) {
     const r = route();
     if (typeof setVeil === "function") { setVeil(false); }
-    const tab = r.page === "uma" ? "umalar" : r.page === "pistler" ? "araclar" : r.page;
+    const tab = r.page === "uma" ? "umalar" : ["pistler", "simulator", "skiller", "soy"].includes(r.page) ? "araclar" : r.page;
     document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.page === tab));
     const focusId = keepFocus && document.activeElement && document.activeElement.id;
     const caret = focusId && document.activeElement.selectionStart;
     const pages = { uma: () => renderUmaPage(r.id), kartlar: renderCards, envanter: renderInventory,
                     takim: renderTeam, profil: renderProfile, indir: renderDownload, umalar: renderUmas,
-                    pistler: () => window.UmaTracks.render(app) };
+                    pistler: () => window.UmaTracks.render(app), simulator: () => window.UmaSim.render(app),
+                    skiller: () => window.UmaSkills.render(app), soy: () => window.UmaLineage.render(app) };
     pages[r.page]();
-    const titles = { envanter: "Envanterim", takim: "Takımım", profil: "Profil", kartlar: "Kartlar", indir: "Uma Collector", pistler: "Pist Haritaları" };
+    const titles = { envanter: "Envanterim", takim: "Takımım", profil: "Profil", kartlar: "Kartlar", indir: "Uma Collector", pistler: "Pist Haritaları", simulator: "Yarış Simülatörü", skiller: "Skill Gezgini", soy: "Soy Planlayıcı" };
     document.title = r.page === "uma" && DATA.umaById[r.id] ? `${DATA.umaById[r.id].name} · UmaCollector`
       : titles[r.page] ? `${titles[r.page]} · UmaCollector` : "UmaCollector";
     if (focusId) {
@@ -1370,11 +1374,16 @@
 
   app.addEventListener("input", (ev) => {
     if (route().page === "pistler" && window.UmaTracks.input(ev, render)) return;
+    if (route().page === "simulator" && ev.target.dataset.find && window.UmaSim.input(ev, render)) return;
+    if (route().page === "skiller" && ev.target.id === "skq" && window.UmaSkills.input(ev, render)) return;
     if (ev.target.id === "uq") { umaState.q = ev.target.value; render(true); }
     if (ev.target.id === "cq") { cardState.q = ev.target.value; render(true); }
   });
   app.addEventListener("change", (ev) => {
     if (route().page === "pistler" && window.UmaTracks.input(ev, render)) return;
+    if (route().page === "simulator" && window.UmaSim.input(ev, render)) return;
+    if (route().page === "skiller" && ev.target.id !== "skq" && window.UmaSkills.input(ev, render)) return;
+    if (route().page === "soy" && window.UmaLineage.input(ev, render)) return;
     if (ev.target.type === "file" && ev.target.files.length) { handleFiles([...ev.target.files]); return; }
     if (ev.target.id === "usort") { umaState.sort = ev.target.value; render(); }
     if (ev.target.id === "csort") { cardState.sort = ev.target.value; render(); }
@@ -1399,6 +1408,9 @@
     const bt = ev.target.closest && ev.target.closest("[data-btab]");
     if (bt) { bannerTab = bt.dataset.btab; render(); return; }
     if (route().page === "pistler" && window.UmaTracks.handle(ev, render)) return;
+    if (route().page === "simulator" && window.UmaSim.handle(ev, render)) return;
+    if (route().page === "skiller" && window.UmaSkills.handle(ev, render)) return;
+    if (route().page === "soy" && window.UmaLineage.handle(ev, render)) return;
     const dm = ev.target.closest && ev.target.closest("[data-deckmode]");
     if (dm) {   // sayfa yerinden kaymasın: başlığın ekrandaki konumu korunur
       const top = app.querySelector(".deck-mode-head").getBoundingClientRect().top;
@@ -1541,11 +1553,12 @@
 
   function showTip(el) {
     const id = el.dataset.skill;
-    const s = DATA.skills[id];
+    const t = window.UMAUMA_TOOLS && window.UMAUMA_TOOLS.skills[id];   // Araçlar verisi: motorun bütün skill'leri
+    const s = DATA.skills[id] || (t && { name: t.n, icon: t.i });
     if (!s) return;
     tipFor = el;
     tip.innerHTML = `<div class="tip-h">${s.icon ? `<img src="img/skill/${s.icon}.png" alt="" ${hideBroken}>` : ""}<b>${esc(s.name)}</b></div>
-      <p>${esc(skillDesc(id))}</p>`;
+      <p>${esc(DATA.skills[id] ? skillDesc(id) : t.tr || t.en)}</p>`;
     tip.hidden = false;
     const r = el.getBoundingClientRect();
     const w = tip.offsetWidth, h = tip.offsetHeight;
@@ -1580,6 +1593,10 @@
     DATA.cards.forEach((c) => { DATA.cardById[c.id] = c; });
     DATA.umas.forEach((u) => { DATA.umaById[u.id] = u; });
     rebuildOwned();
+    // Araçlar sayfaları için: Uma eşlemesi ve kullanıcının takımı (rehberi olan doğru kostümle)
+    window.UmaApp = { umaById: DATA.umaById, guides: DATA.guides, owned: () => ownedUma,
+      team: () => (INV.team?.rows || []).map((r) => { const gf = guideFor(r.name, r.cat);
+        return { ...r, uma: gf ? gf.uma.id : r.uma }; }) };
     renderMenu();
     if (location.hash === "#giris") { history.replaceState(null, "", "#umalar"); openAuth("login"); }
     render();

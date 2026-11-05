@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?b=20261105212045">
+<link rel="stylesheet" href="css/style.css?b=20261105222119">
 </head>
 <body>
 <header class="top">
@@ -31,9 +31,9 @@
         <button type="button" class="tab tools-btn" id="toolsBtn" data-page="araclar" aria-haspopup="menu" aria-expanded="false">Araçlar<svg class="caret" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <div class="tools-menu" id="toolsMenu" role="menu" hidden>
           <a role="menuitem" class="tm-item" href="#araclar/pistler"><span class="tm-ico">🏟</span><span><b>Pist Haritaları</b><small>Parkurların virajları, yokuşları ve yarış bölümleri</small></span></a>
-          <span class="tm-item soon" aria-disabled="true"><span class="tm-ico">✦</span><span><b>Skill Gezgini</b><small>Yakında</small></span></span>
-          <span class="tm-item soon" aria-disabled="true"><span class="tm-ico">🧬</span><span><b>Soy Planlayıcı</b><small>Yakında</small></span></span>
-          <span class="tm-item soon" aria-disabled="true"><span class="tm-ico">🏁</span><span><b>Yarış Simülatörü</b><small>Yakında</small></span></span>
+          <a role="menuitem" class="tm-item" href="#araclar/skiller"><span class="tm-ico">✦</span><span><b>Skill Gezgini</b><small>Bütün skill'ler ve kazandırdıkları boy</small></span></a>
+          <a role="menuitem" class="tm-item" href="#araclar/soy"><span class="tm-ico">🧬</span><span><b>Soy Planlayıcı</b><small>Ebeveyn uyumu ve spark ihtimalleri</small></span></a>
+          <a role="menuitem" class="tm-item" href="#araclar/simulator"><span class="tm-ico">🏁</span><span><b>Yarış Simülatörü</b><small>İki Uma'yı aynı parkurda karşılaştır</small></span></a>
         </div>
       </div>
     </nav>
@@ -69,10 +69,13 @@
   </div>
 </footer>
 
-<script src="data/data.js?b=20261105212045"></script>
-<script src="js/firebase-config.js?b=20261105212045"></script>
-<script src="js/tracks.js?b=20261105212045"></script>
-<script src="js/app.js?b=20261105212045"></script>
-<script type="module" src="js/auth.js?b=20261105212045"></script>
+<script src="data/data.js?b=20261105222119"></script>
+<script src="js/firebase-config.js?b=20261105222119"></script>
+<script src="js/tracks.js?b=20261105222119"></script>
+<script src="js/sim.js?b=20261105222119"></script>
+<script src="js/skills.js?b=20261105222119"></script>
+<script src="js/lineage.js?b=20261105222119"></script>
+<script src="js/app.js?b=20261105222119"></script>
+<script type="module" src="js/auth.js?b=20261105222119"></script>
 </body>
 </html>

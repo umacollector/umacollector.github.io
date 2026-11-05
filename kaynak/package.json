@@ -1,0 +1,16 @@
+{
+  "name": "umacollector-motor",
+  "version": "1.0.0",
+  "description": "UmaCollector yarış motoru köprüsü, alpha123/uma-tools üzerine",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "GPL-3.0-or-later",
+  "type": "commonjs",
+  "dependencies": {
+    "esbuild": "^0.19.12"
+  }
+}

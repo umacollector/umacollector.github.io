@@ -86,7 +86,7 @@
     }).join("") : `<span class="tk-flat">Düz, yokuş ya da iniş yok</span>`;
     const ticks = [];
     const stepM = L > 2400 ? 400 : 200;
-    for (let m = 0; m <= L; m += stepM) ticks.push(`<span class="tk-tick" style="left:${pct(m)}">${fmt(m)}</span>`);
+    for (let m = 0; m <= L; m += stepM) ticks.push(`<span class="tk-tick ${(m / stepM) % 2 ? "odd" : ""}" style="left:${pct(m)}">${fmt(m)}</span>`);
     const mark = (m, cls, lab) => `<span class="tk-mark ${cls}" style="left:${pct(m)}"><b>${lab}</b></span>`;
     return `<div class="tk-strip">
       <div class="tk-row"><span class="tk-rl">Bölüm</span><div class="tk-track">${phases}</div></div>
@@ -177,7 +177,7 @@
   }
 
   window.UmaTracks = {
-    render,
+    render, strip: stripHtml, map: mapSvg,
     handle(ev, rerender) {
       const card = ev.target.closest(".tk-card");
       if (card) { openCourse(Number(card.dataset.course)); return true; }
