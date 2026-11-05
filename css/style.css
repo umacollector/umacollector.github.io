@@ -943,3 +943,18 @@ span.pf-avatar.face, span.pm-av.face { display: block; }
   .pf-banner.uma .pf-uma { height: 210px; bottom: -40px; right: -2%; }
   .bn-preview .pf-banner.card .pf-card { height: 104px; }
 }
+
+/* ---------- telefonda desteler tek satırda: 6 kart yan yana, sadece görsel ---------- */
+@media (max-width: 600px) {
+  .deck-row { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
+  .deck .cmini, .alt-group .cmini { padding: 4px 3px 5px; gap: 3px; border-radius: 10px; }
+  .deck .cmini img, .alt-group .cmini img { width: 100%; height: auto; aspect-ratio: 1; border-radius: 8px; }
+  .deck .cm-txt, .alt-group .cm-txt { display: none; }
+  .deck .own, .alt-group .own { font-size: 8px; padding: 1px 4px; }
+  .own-l { display: none; }
+  .flex-slot .cmini { padding-top: 4px; }
+  .flex-tag { display: none; }
+  .key-tag { font-size: 9px; margin-top: 3px; line-height: 1.15; }
+  .deck .cmini.missing { min-height: 0; aspect-ratio: 3 / 4; font-size: 8px; padding: 2px; }
+  .alt-row { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 5px; }
+}
