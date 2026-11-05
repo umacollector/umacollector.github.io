@@ -554,9 +554,9 @@
     return out;
   }
 
-  function cardBox(c, open = false) {
+  function cardBox(c, open = false, lvOverride = null) {
     const key = "c" + c.id;
-    const lv = levelFor(c, cardState.uncap);
+    const lv = lvOverride || levelFor(c, cardState.uncap);
     const sortId = cardState.sort.startsWith("eff:") ? Number(cardState.sort.slice(4)) : null;
     const effs = cardEffects(c, lv);
     // Seviyede açılan özel bonusun koşulsuz katkısı ilgili satıra "+5 özel" olarak eklenir
@@ -591,6 +591,32 @@
         <div class="close-hint">Kapatmak için tekrar tıkla ya da boş bir yere tıkla</div>
       </div>
     </article>`;
+  }
+
+  /* ---------------- rehberdeki karta tıklayınca: kart özellikleri penceresi ---------------- */
+  // Kart sende varsa sendeki seviyesiyle, yoksa en yüksek (MLB) seviyesiyle gösterilir.
+  // Pencerenin içinde ya da dışında herhangi bir yere tıklayınca kapanır (skill etiketleri hariç).
+  function openCardPopup(id) {
+    const c = DATA.cardById[id];
+    if (!c) return;
+    const own = ownedCard.get(id);
+    const lv = own ? Math.max(1, own.level || 1) : levelFor(c, 4);
+    const bg = document.createElement("div");
+    bg.className = "modal-bg card-pop";
+    bg.innerHTML = `<div class="card-pop-in" role="dialog" aria-modal="true" aria-label="${esc(c.name)}">
+        ${cardBox(c, true, lv)}
+        <p class="card-pop-note">${own ? `Sendeki seviye: Lvl ${lv} · LB${own.uncap}` : `En yüksek seviye (MLB): Lvl ${lv}`} · kapatmak için herhangi bir yere dokun</p>
+      </div>`;
+    const box = bg.querySelector(".box.card");
+    box.classList.add("float-pop");
+    box.removeAttribute("tabindex");
+    const hint = box.querySelector(".close-hint"); if (hint) hint.remove();
+    document.body.appendChild(bg);
+    document.body.classList.add("modal-open");
+    const close = () => { bg.remove(); document.body.classList.remove("modal-open"); document.removeEventListener("keydown", onKey); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+    bg.addEventListener("click", (ev) => { if (!ev.target.closest("[data-skill]")) close(); });
   }
 
   /* ---------------- kart açma: üstte yüzen kutu + beyaz perde ---------------- */
@@ -1289,7 +1315,9 @@
       keys.forEach((k) => { INV[k] = null; store.set("inv." + k, null); cloudSave(k); });
       rebuildOwned(); render(); return;
     }
-    const mini = ev.target.closest("a.cmini[data-card], a.inv-card[data-card]");
+    const cm = ev.target.closest("a.cmini[data-card]");
+    if (cm) { ev.preventDefault(); openCardPopup(Number(cm.dataset.card)); return; }
+    const mini = ev.target.closest("a.inv-card[data-card]");
     if (mini) {
       // Rehberdeki karta tıklanınca Kartlar'da o kart açık gelir
       const c = DATA.cardById[Number(mini.dataset.card)];
