@@ -285,24 +285,27 @@
     const uq = uniquePlain(c, lv);
     return (v(16) + (uq[16] || 0)) + 0.3 * (v(15) + (uq[15] || 0));
   }
-  function fanDeck(g, pool, levelOf) {
+  function fanDeck(g, pool, levelOf, n = 6, skip = []) {
     const trainee = DATA.umaById[g.id];
     const used = new Set(trainee ? [norm(trainee.name)] : []);
+    skip.forEach((id) => { const c = DATA.cardById[id]; if (c) used.add(norm(c.name)); });
     const ranked = pool.map((c) => ({ c, s: fanValue(c, levelOf(c)) })).filter((x) => x.s > 0)
       .sort((a, b) => b.s - a.s || RARITIES.indexOf(a.c.rarity) - RARITIES.indexOf(b.c.rarity));
     const out = [];
     for (const { c } of ranked) {
       if (used.has(norm(c.name))) continue;
       used.add(norm(c.name)); out.push(c.id);
-      if (out.length === 6) break;
+      if (out.length === n) break;
     }
-    while (out.length < 6) out.push(null);
+    while (out.length < n) out.push(null);
     return out;
   }
-  const fanBest = (g) => fanDeck(g, DATA.cards, (c) => levelFor(c, 4));
-  const fanBudget = (g) => fanDeck(g, DATA.cards.filter((c) => c.rarity !== "SSR"), (c) => levelFor(c, 4));
+  // 6. slot (esnek, arkadaştan ödünç): MLB'de en yüksek Fan Bonus'lu kart; üç destede de aynı
+  const fanFlex = (g) => fanDeck(g, DATA.cards, (c) => levelFor(c, 4), 1)[0];
+  const fanBest = (g) => fanDeck(g, DATA.cards, (c) => levelFor(c, 4), 5, [fanFlex(g)]);
+  const fanBudget = (g) => fanDeck(g, DATA.cards.filter((c) => c.rarity !== "SSR"), (c) => levelFor(c, 4), 5, [fanFlex(g)]);
   const fanOwned = (g) => fanDeck(g, [...ownedCard.values()].map((r) => DATA.cardById[r.id]).filter(Boolean),
-    (c) => { const r = ownedCard.get(c.id); return invUseLevel ? Math.max(1, r.level || 1) : levelFor(c, r.uncap || 0); });
+    (c) => { const r = ownedCard.get(c.id); return invUseLevel ? Math.max(1, r.level || 1) : levelFor(c, r.uncap || 0); }, 5, [fanFlex(g)]);
   // Destedeki toplam Fan Bonus (gösterim için)
   function fanTotal(ids, levelOf) {
     return ids.filter(Boolean).reduce((t, id) => { const c = DATA.cardById[id]; const lv = levelOf(c);
@@ -467,11 +470,12 @@
             if (deckMode === "fan") {
               const mlb = (c) => levelFor(c, 4);
               const ownLv = (c) => { const r = ownedCard.get(c.id); return invUseLevel ? Math.max(1, r.level || 1) : levelFor(c, r.uncap || 0); };
-              const best = fanBest(g), budget = fanBudget(g);
-              const tag = (n) => `<span class="fan-total">Toplam Fan Bonus %${n}</span>`;
-              return deckRow("En yüksek Fan Bonus", best, null, "", tag(fanTotal(best, mlb)))
-                + deckRow("Budget · SR ve R", budget, null, "", tag(fanTotal(budget, mlb)))
-                + (INV.cards ? (() => { const own = fanOwned(g); return deckRow("Envanterinden", own, null, "", tag(fanTotal(own, ownLv)) + lvToggle); })() : noInv);
+              const flex = fanFlex(g), best = fanBest(g), budget = fanBudget(g);
+              const flexFan = fanTotal([flex], mlb);
+              const tag = (n) => `<span class="fan-total">Toplam Fan Bonus %${n + flexFan}</span>`;
+              return deckRow("En yüksek Fan Bonus", best, flex, "", tag(fanTotal(best, mlb)))
+                + deckRow("Budget · SR ve R", budget, flex, "", tag(fanTotal(budget, mlb)))
+                + (INV.cards ? (() => { const own = fanOwned(g); return deckRow("Envanterinden", own, flex, "", tag(fanTotal(own, ownLv)) + lvToggle); })() : noInv);
             }
             return deckRow("Önerilen deste", g.deck.main, g.deck.flex)
               + (g.deck.budget && g.deck.budget.length ? deckRow("Budget deste", g.deck.budget, g.deck.flex) : "")
