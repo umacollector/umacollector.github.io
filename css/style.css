@@ -583,3 +583,8 @@ a.box { display: block; color: inherit; text-decoration: none; }
 /* takım kutusu: karşılaştırma açık/kapalı aynı yükseklik */
 .mini-v { height: 20px; align-content: center; }
 .mini-v small:empty { display: none; }
+
+/* rozetler hiçbir zaman kendi içinde bölünmez; sığmazsa rozet topluca alt satıra geçer */
+.rar, .type, .own { display: inline-flex; align-items: center; white-space: nowrap; flex-shrink: 0; line-height: 1.5; }
+.cm-badges { flex-wrap: wrap; row-gap: 4px; }
+.badges { flex-wrap: wrap; row-gap: 4px; }
