@@ -119,6 +119,7 @@
     }
     INV[p.kind] = { date: p.date, rows };
     store.set("inv." + p.kind, INV[p.kind]);
+    cloudSave(p.kind);
     rebuildOwned();
     const label = { umas: "Uma", cards: "kart", team: "takım Uma'sı" }[p.kind];
     return { ok: true, kind: p.kind, msg: `${rows.length} ${label} yüklendi${miss ? `, ${miss} tanesi sitedeki listeyle eşleşmedi` : ""}.` };
@@ -828,15 +829,195 @@
       </div>`;
   }
 
-  function renderLogin() {
+  /* ---------------- HESAP: profil sayfası ---------------- */
+  const authReady = () => window.UmaAuth && window.UmaAuth.ready;
+  const AUTH = { user: null, profile: null };
+
+  function profileTeam() {
+    return (INV.team?.rows || []).map((r) => ({ cat: r.cat, slot: r.slot, uma: r.uma || null, name: r.name,
+                                                epithet: r.epithet || "", points: r.points || 0 }));
+  }
+
+  function bannerHtml(b) {
+    if (!b) return `<div class="pf-banner empty"></div>`;
+    if (b.kind === "card" && DATA.cardById[b.id])
+      return `<div class="pf-banner card"><img class="pf-blur" src="img/card_l/${b.id}.webp" alt="" onerror="this.src='img/card/${b.id}.png'"><img class="pf-card" src="img/card_l/${b.id}.webp" alt="" onerror="this.src='img/card/${b.id}.png'"></div>`;
+    if (b.kind === "uma" && DATA.umaById[b.id])
+      return `<div class="pf-banner uma"><img src="${umaImg(DATA.umaById[b.id], true)}" alt=""></div>`;
+    return `<div class="pf-banner empty"></div>`;
+  }
+
+  function avatarHtml(id, cls = "pf-avatar") {
+    const u = DATA.umaById[id];
+    return u ? `<img class="${cls}" src="${umaImg(u)}" alt="">`
+             : `<span class="${cls} none"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.2" fill="currentColor"/><path d="M3.5 21c.8-4.6 4.3-7 8.5-7s7.7 2.4 8.5 7z" fill="currentColor"/></svg></span>`;
+  }
+
+  let bannerTab = "uma";
+
+  function renderProfile() {
+    if (!authReady()) {
+      app.innerHTML = `<section class="panel login-soon"><h2>Hesap sistemi hazırlanıyor</h2><p>Envanterim ve Takımım şimdilik bu tarayıcıda çalışıyor.</p></section>`;
+      return;
+    }
+    if (!AUTH.user) {
+      app.innerHTML = `<section class="panel login-soon"><h2>Profil</h2><p>Profilini görmek için giriş yap.</p>
+        <button type="button" class="dl-btn small" data-auth="login">Giriş Yap</button></section>`;
+      return;
+    }
+    const pr = AUTH.profile || {};
+    const team = profileTeam();
+    const total = team.reduce((a, r) => a + (r.points || 0), 0);
+    const umaCount = INV.umas?.rows.length || 0, cardCount = INV.cards?.rows.length || 0;
+    const cats = ["Sprint", "Mile", "Medium", "Long", "Dirt"];
+    const teamHtml = team.length ? `<div class="pf-team">${cats.map((cat) => `<div class="pf-col"><h3>${cat}</h3>${
+      team.filter((r) => r.cat === cat).map((r) => {
+        const u = DATA.umaById[r.uma]; const rk = r.points ? rankOf(r.points) : null;
+        return `<div class="pf-slot ${r.slot === "ACE" ? "ace" : ""}">
+          ${u ? `<img src="${umaImg(u)}" alt="">` : `<span class="noimg">?</span>`}
+          <span class="pf-sname">${esc(r.name)}</span><span class="pf-sep">${esc(r.epithet)}</span>
+          <span class="pf-spts">${rk ? rankBadge(rk.name) : ""}${r.points ? r.points.toLocaleString("tr-TR") : ""}</span>
+          ${r.slot === "ACE" ? `<span class="ace-tag">ACE</span>` : ""}
+        </div>`; }).join("")}</div>`).join("")}</div>`
+      : `<p class="hint">Takımını <a href="#takim">Takımım</a>'a yüklediğinde burada görünür.</p>`;
+
+    const ownedUmas = (INV.umas?.rows || []).map((r) => DATA.umaById[r.id]).filter(Boolean);
+    const ownedCards = (INV.cards?.rows || []).map((r) => DATA.cardById[r.id]).filter(Boolean)
+      .sort((a, b) => RARITIES.indexOf(a.rarity) - RARITIES.indexOf(b.rarity));
+    const pickUma = (u, attr, on) => `<button type="button" class="pk ${on ? "on" : ""}" ${attr}="${u.id}" title="${esc(u.name + " " + u.title)}"><img src="${umaImg(u)}" alt=""></button>`;
+    const pickCard = (c, on) => `<button type="button" class="pk card ${on ? "on" : ""}" data-pbanner="card" data-pid="${c.id}" title="${esc(c.name + " " + c.title)}"><img src="${cardImg(c)}" alt=""></button>`;
+    const b = pr.banner || null;
+    const bannerPicks = bannerTab === "uma"
+      ? ownedUmas.map((u) => `<button type="button" class="pk ${b && b.kind === "uma" && b.id === u.id ? "on" : ""}" data-pbanner="uma" data-pid="${u.id}" title="${esc(u.name + " " + u.title)}"><img src="${umaImg(u)}" alt=""></button>`).join("")
+      : ownedCards.map((c) => pickCard(c, b && b.kind === "card" && b.id === c.id)).join("");
+    const noUmas = `<p class="hint"><a href="#envanter">Envanterim</a>'e Umalarını yüklediğinde buradan seçebilirsin.</p>`;
+    const noCards = `<p class="hint"><a href="#envanter">Envanterim</a>'e kartlarını yüklediğinde buradan seçebilirsin.</p>`;
+
     app.innerHTML = `
-      <div class="page-head"><h1>Giriş Yap</h1></div>
-      <section class="panel login-soon">
-        <h2>Hesap sistemi hazırlanıyor</h2>
-        <p>Giriş yapınca envanterin ve takımın hesabına kaydedilecek, her cihazdan görebileceksin.
-        O zamana kadar <a href="#envanter">Envanterim</a> ve <a href="#takim">Takımım</a> sayfaları bu tarayıcıda çalışıyor.</p>
+      <section class="pf-top">
+        ${bannerHtml(b)}
+        <div class="pf-head">
+          ${avatarHtml(pr.avatar)}
+          <div class="pf-id">
+            <h1>${esc(pr.username || "")}</h1>
+            <div class="pf-stats"><span>${umaCount} Uma</span><span>${cardCount} kart</span>${total ? `<span>${total.toLocaleString("tr-TR")} takım puanı</span>` : ""}</div>
+          </div>
+        </div>
+      </section>
+      <section class="panel wide pf-sec"><h2>Takımım</h2>${teamHtml}</section>
+      <section class="panel wide pf-sec">
+        <h2>Profili düzenle</h2>
+        <h3>Profil fotoğrafı</h3>
+        ${ownedUmas.length ? `<div class="pk-grid">${ownedUmas.map((u) => pickUma(u, "data-pavatar", pr.avatar === u.id)).join("")}</div>` : noUmas}
+        <div class="deck-head"><h3>Banner</h3>
+          <span class="seg" role="group" aria-label="Banner türü">
+            <button type="button" data-btab="uma" class="${bannerTab === "uma" ? "on" : ""}">Uma</button>
+            <button type="button" data-btab="card" class="${bannerTab === "card" ? "on" : ""}">Kart</button>
+          </span>
+        </div>
+        ${(bannerTab === "uma" ? ownedUmas.length : ownedCards.length) ? `<div class="pk-grid ${bannerTab === "card" ? "cards" : ""}">${bannerPicks}</div>` : (bannerTab === "uma" ? noUmas : noCards)}
+        ${b ? `<button type="button" class="reset" data-pbanner="none">Banner'ı kaldır</button>` : ""}
       </section>`;
   }
+
+  /* ---------------- HESAP: giriş / kayıt penceresi ---------------- */
+  let authModal = null;
+  function closeAuth() { if (authModal) { authModal.remove(); authModal = null; document.body.classList.remove("modal-open"); } }
+
+  function openAuth(mode = "login") {
+    closeAuth();
+    const reg = mode === "register";
+    const ready = authReady();
+    authModal = document.createElement("div");
+    authModal.className = "modal-bg";
+    authModal.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+        <button type="button" class="modal-x" data-authclose aria-label="Kapat">×</button>
+        <div class="modal-logo"><span class="l1">Uma</span><span class="l2">Uma</span></div>
+        <h2 id="authTitle">${reg ? "Hesap Oluştur" : "Giriş Yap"}</h2>
+        ${ready ? `<form class="auth-form" novalidate>
+          <label>Kullanıcı adı<input name="u" autocomplete="username" maxlength="20" required></label>
+          <label>Şifre<input name="p" type="password" autocomplete="${reg ? "new-password" : "current-password"}" required></label>
+          ${reg ? `<label>Şifre tekrar<input name="p2" type="password" autocomplete="new-password" required></label>
+            <p class="auth-hint">Kullanıcı adı 3-20 karakter: harf, rakam, nokta, alt çizgi ya da tire. Şifre en az ${window.UmaAuth.MIN_PASSWORD} karakter.</p>` : ""}
+          <p class="auth-err" role="alert"></p>
+          <button type="submit" class="auth-go">${reg ? "Hesap Oluştur" : "Giriş Yap"}</button>
+        </form>
+        <p class="auth-switch">${reg ? `Zaten hesabın var mı? <button type="button" data-auth="login">Giriş Yap</button>`
+                                    : `Hesabın yok mu? <button type="button" data-auth="register">Hesap Oluştur</button>`}</p>`
+        : `<p class="auth-hint">Hesap sistemi henüz hazır değil. Envanterim ve Takımım şimdilik bu tarayıcıda çalışıyor.</p>`}
+      </div>`;
+    document.body.appendChild(authModal);
+    document.body.classList.add("modal-open");
+    const first = authModal.querySelector("input"); if (first) first.focus();
+    const form = authModal.querySelector("form");
+    if (form) form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const f = new FormData(form), err = form.querySelector(".auth-err"), btn = form.querySelector(".auth-go");
+      err.textContent = "";
+      if (reg && f.get("p") !== f.get("p2")) { err.textContent = "Şifreler aynı değil."; return; }
+      btn.disabled = true; btn.textContent = reg ? "Hesap oluşturuluyor…" : "Giriş yapılıyor…";
+      try {
+        await (reg ? window.UmaAuth.register(f.get("u"), f.get("p")) : window.UmaAuth.login(f.get("u"), f.get("p")));
+        closeAuth();
+      } catch (e) {
+        err.textContent = e.message || "Bir sorun oldu, tekrar dene.";
+        btn.disabled = false; btn.textContent = reg ? "Hesap Oluştur" : "Giriş Yap";
+      }
+    });
+  }
+
+  document.addEventListener("click", (ev) => {
+    const sw = ev.target.closest && ev.target.closest("[data-auth]");
+    if (sw) { ev.preventDefault(); closeMenu(); openAuth(sw.dataset.auth); return; }
+    if (authModal && (ev.target === authModal || ev.target.closest("[data-authclose]"))) closeAuth();
+    const out = ev.target.closest && ev.target.closest("[data-logout]");
+    if (out) { ev.preventDefault(); closeMenu(); window.UmaAuth.logout(); if (location.hash === "#profil") location.hash = "#umalar"; }
+  });
+  document.addEventListener("keydown", (ev) => { if (authModal && ev.key === "Escape") closeAuth(); });
+
+  /* ---------------- HESAP: eşitleme ---------------- */
+  // Hesap açıkken envanter/takım buluta da yazılır; profilin herkese açık kısmı (takım, sayılar) güncellenir.
+  function cloudSave(kind) {
+    if (!authReady() || !AUTH.user) return;
+    window.UmaAuth.saveInventory(kind, INV[kind] || null).catch(() => {});
+    publishProfile();
+  }
+
+  function publishProfile() {
+    if (!authReady() || !AUTH.user) return;
+    const team = profileTeam();
+    const stats = { umas: INV.umas?.rows.length || 0, cards: INV.cards?.rows.length || 0,
+                    points: team.reduce((a, r) => a + (r.points || 0), 0) };
+    const pr = AUTH.profile || {};
+    if (JSON.stringify(pr.team || []) === JSON.stringify(team) && JSON.stringify(pr.stats || {}) === JSON.stringify(stats)) return;
+    window.UmaAuth.saveProfile({ team, stats }).catch(() => {});
+  }
+
+  // Girişte: her bölüm için bu tarayıcıdaki ve hesaptaki kayıttan yenisi kullanılır, eski taraf güncellenir.
+  async function syncInventory() {
+    let cloud = null;
+    try { cloud = await window.UmaAuth.loadInventory(); } catch (e) { return; }
+    cloud = cloud || {};
+    ["umas", "cards", "team"].forEach((k) => {
+      const local = INV[k], remote = cloud[k] || null;
+      const newer = !local ? remote : !remote ? local : ((remote.date || "") > (local.date || "") ? remote : local);
+      INV[k] = newer;
+      store.set("inv." + k, newer);
+      if (newer && newer !== remote) window.UmaAuth.saveInventory(k, newer).catch(() => {});
+    });
+    rebuildOwned();
+    publishProfile();
+    render();
+  }
+
+  window.addEventListener("umauth", (ev) => {
+    const was = AUTH.user && AUTH.user.uid;
+    AUTH.user = ev.detail.user; AUTH.profile = ev.detail.profile;
+    renderMenu();
+    if (AUTH.user && AUTH.user.uid !== was) syncInventory();
+    else if (["#profil", "#envanter", "#takim"].includes(location.hash)) render();
+  });
 
   async function handleFiles(files) {
     const msgs = [];
@@ -855,7 +1036,7 @@
     const h = location.hash;
     const m = h.match(/^#uma\/(\d+)$/);
     if (m) return { page: "uma", id: Number(m[1]) };
-    if (["#envanter", "#takim", "#giris", "#kartlar", "#indir"].includes(h)) return { page: h.slice(1) };
+    if (["#envanter", "#takim", "#kartlar", "#indir", "#profil"].includes(h)) return { page: h.slice(1) };
     return { page: "umalar" };
   }
 
@@ -866,9 +1047,9 @@
     const focusId = keepFocus && document.activeElement && document.activeElement.id;
     const caret = focusId && document.activeElement.selectionStart;
     const pages = { uma: () => renderUmaPage(r.id), kartlar: renderCards, envanter: renderInventory,
-                    takim: renderTeam, giris: renderLogin, indir: renderDownload, umalar: renderUmas };
+                    takim: renderTeam, profil: renderProfile, indir: renderDownload, umalar: renderUmas };
     pages[r.page]();
-    const titles = { envanter: "Envanterim", takim: "Takımım", giris: "Giriş Yap", kartlar: "Kartlar", indir: "Uma Collector" };
+    const titles = { envanter: "Envanterim", takim: "Takımım", profil: "Profil", kartlar: "Kartlar", indir: "Uma Collector" };
     document.title = r.page === "uma" && DATA.umaById[r.id] ? `${DATA.umaById[r.id].name} · UmaUma`
       : titles[r.page] ? `${titles[r.page]} · UmaUma` : "UmaUma";
     if (focusId) {
@@ -897,13 +1078,22 @@
   }));
 
   app.addEventListener("click", (ev) => {
+    const pa = ev.target.closest && ev.target.closest("[data-pavatar]");
+    if (pa) { window.UmaAuth.saveProfile({ avatar: Number(pa.dataset.pavatar) }).catch(() => {}); return; }
+    const pb = ev.target.closest && ev.target.closest("[data-pbanner]");
+    if (pb) {
+      const banner = pb.dataset.pbanner === "none" ? null : { kind: pb.dataset.pbanner, id: Number(pb.dataset.pid) };
+      window.UmaAuth.saveProfile({ banner }).catch(() => {}); return;
+    }
+    const bt = ev.target.closest && ev.target.closest("[data-btab]");
+    if (bt) { bannerTab = bt.dataset.btab; render(); return; }
     const il = ev.target.closest && ev.target.closest("#invLevel");
     if (il) { invUseLevel = !invUseLevel; store.set("invUseLevel", invUseLevel); render(); return; }
     const tg = ev.target.closest && ev.target.closest("#teamCompare");
     if (tg) { teamCompare = !teamCompare; store.set("teamCompare", teamCompare); teamAnim = true; render(); teamAnim = false; return; }
     if (ev.target.id === "invClear" || ev.target.id === "teamClear") {
       const keys = ev.target.id === "invClear" ? ["umas", "cards"] : ["team"];
-      keys.forEach((k) => { INV[k] = null; store.set("inv." + k, null); });
+      keys.forEach((k) => { INV[k] = null; store.set("inv." + k, null); cloudSave(k); });
       rebuildOwned(); render(); return;
     }
     const mini = ev.target.closest("a.cmini[data-card], a.inv-card[data-card]");
@@ -958,6 +1148,22 @@
   const pBtn = document.getElementById("profileBtn");
   const pMenu = document.getElementById("profileMenu");
   function closeMenu() { pMenu.hidden = true; pBtn.setAttribute("aria-expanded", "false"); }
+  function renderMenu() {
+    const u = AUTH.user && AUTH.profile;
+    pMenu.innerHTML = (u
+      ? `<a role="menuitem" href="#profil" class="pm-item pm-user">${avatarHtml(AUTH.profile.avatar, "pm-av")}<b>${esc(AUTH.profile.username)}</b></a>`
+      : `<button type="button" role="menuitem" class="pm-item" data-auth="login"><span class="pm-dot pink"></span>Giriş Yap</button>`)
+      + `<a role="menuitem" href="#envanter" class="pm-item"><span class="pm-dot yellow"></span>Envanterim</a>
+         <a role="menuitem" href="#takim" class="pm-item"><span class="pm-dot green"></span>Takımım</a>`
+      + (u ? `<button type="button" role="menuitem" class="pm-item pm-out" data-logout><span class="pm-dot grey"></span>Çıkış Yap</button>` : "");
+    const nameEl = document.getElementById("profileName");
+    nameEl.textContent = u ? AUTH.profile.username : "Profil";
+    const av = pBtn.querySelector(".avatar");
+    const pu = u && DATA.umaById[AUTH.profile.avatar];
+    av.innerHTML = pu ? `<img src="${umaImg(pu)}" alt="">`
+      : `<svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="8" r="4.2" fill="currentColor"/><path d="M3.5 21c.8-4.6 4.3-7 8.5-7s7.7 2.4 8.5 7z" fill="currentColor"/></svg>`;
+    av.classList.toggle("has-img", !!pu);
+  }
   function openMenu() {
     pMenu.hidden = false; pBtn.setAttribute("aria-expanded", "true");
     const first = pMenu.querySelector(".pm-item"); if (first) first.focus();
@@ -1021,6 +1227,8 @@
     DATA.cards.forEach((c) => { DATA.cardById[c.id] = c; });
     DATA.umas.forEach((u) => { DATA.umaById[u.id] = u; });
     rebuildOwned();
+    renderMenu();
+    if (location.hash === "#giris") { history.replaceState(null, "", "#umalar"); openAuth("login"); }
     render();
   }
 })();
