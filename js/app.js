@@ -1,4 +1,4 @@
-/* UmaUma: Global'deki tüm Umalar, destek kartları ve Team Trials rehberleri */
+/* UmaCollector: Global'deki tüm Umalar, destek kartları ve Team Trials rehberleri */
 (() => {
   "use strict";
 
@@ -22,7 +22,7 @@
   const FAN_BONUS = 16;
   const STAT_BAR_MAX = 1600;
 
-  /* ---------------- stat ikonları (UmaUma'nın kendi çizimleri) ---------------- */
+  /* ---------------- stat ikonları (UmaCollector'nın kendi çizimleri) ---------------- */
   const ICON_PATHS = {
     Speed: '<path d="M3 15.2c0-.9.6-1.6 1.4-1.8l4.4-1.1 2.1-4.1 3.2 1.1-1 3 3.6 1.2c2.6.9 4.3 2.1 4.3 4.1v.6H3z"/><path d="M3 18.6h18V21H3z"/>',
     Stamina: '<path d="M12 21s-7.4-4.5-9.2-9.1C1.6 8.7 3.7 5 7.1 5c2 0 3.4 1.1 4.9 3 1.5-1.9 2.9-3 4.9-3 3.4 0 5.5 3.7 4.3 6.9C19.4 16.5 12 21 12 21z"/>',
@@ -439,7 +439,7 @@
           <h3>Pembe spark (uygunluk)</h3>
           <div class="taglist">${g.parents.pink.map((p) => `<span class="tag pinkt">${esc(p)}</span>`).join("")}</div>
         </section>
-        <p class="source">Kaynak: <a href="${esc(g.source.url)}" target="_blank" rel="noopener">${esc(g.source.name)}</a>, ${fmtDate(g.source.updated)} tarihli rehber. Notlar UmaUma tarafından özetlendi.</p>
+        <p class="source">Kaynak: <a href="${esc(g.source.url)}" target="_blank" rel="noopener">${esc(g.source.name)}</a>, ${fmtDate(g.source.updated)} tarihli rehber. Notlar UmaCollector tarafından özetlendi.</p>
       </div>`;
   }
 
@@ -554,9 +554,8 @@
     return out;
   }
 
-  function cardBox(c) {
+  function cardBox(c, open = false) {
     const key = "c" + c.id;
-    const open = openKey === key;
     const lv = levelFor(c, cardState.uncap);
     const sortId = cardState.sort.startsWith("eff:") ? Number(cardState.sort.slice(4)) : null;
     const effs = cardEffects(c, lv);
@@ -589,10 +588,87 @@
         ${c.hints.length ? `<h4>Skill ipuçları</h4><div class="taglist">${c.hints.map(skillTag).join("")}</div>` : ""}
         ${c.events.length ? `<h4>Olay skilleri</h4><div class="taglist">${c.events.map(skillTag).join("")}</div>` : ""}
         <div class="date">Global çıkış: ${fmtDate(c.release)}</div>
-        <div class="close-hint">Kapatmak için tekrar tıkla</div>
+        <div class="close-hint">Kapatmak için tekrar tıkla ya da boş bir yere tıkla</div>
       </div>
     </article>`;
   }
+
+  /* ---------------- kart açma: üstte yüzen kutu + beyaz perde ---------------- */
+  const veil = document.createElement("div");
+  veil.className = "veil";
+  document.body.appendChild(veil);
+  let floating = null;      // açık kart (article)
+  const ANIM = 230;
+
+  function setVeil(on) { veil.classList.toggle("on", on); }
+
+  function animateHeight(el, from, to, done) {
+    el.style.height = from + "px";
+    el.style.overflow = "hidden";
+    void el.offsetHeight;
+    el.style.transition = `height ${ANIM}ms cubic-bezier(.2,.8,.2,1)`;
+    el.style.height = to + "px";
+    let fired = false;
+    const end = () => { if (fired) return; fired = true; el.style.transition = ""; done && done(); };
+    el.addEventListener("transitionend", end, { once: true });
+    setTimeout(end, ANIM + 80);
+  }
+
+  function openCard(article, animate = true) {
+    const c = DATA.cardById[Number(article.dataset.key.slice(1))];
+    if (!c) return;
+    const cell = article.parentElement;
+    const h0 = article.offsetHeight;
+    cell.style.height = h0 + "px";
+    const tmp = document.createElement("div");
+    tmp.innerHTML = cardBox(c, true).trim();
+    const el = tmp.firstElementChild;
+    el.classList.add("float");
+    cell.replaceChild(el, article);
+    floating = el;
+    openKey = el.dataset.key;
+    setVeil(true);
+    const h1 = el.scrollHeight;
+    if (animate) animateHeight(el, h0, h1, () => { el.style.height = ""; el.style.overflow = ""; });
+    return el;
+  }
+
+  function closeCard(animate = true, after) {
+    const el = floating;
+    if (!el) { after && after(); return; }
+    floating = null;
+    openKey = null;
+    setVeil(false);
+    const cell = el.parentElement;
+    const c = DATA.cardById[Number(el.dataset.key.slice(1))];
+    const finish = () => {
+      if (cell && cell.isConnected) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = cardBox(c, false).trim();
+        cell.replaceChild(tmp.firstElementChild, el);
+        cell.style.height = "";
+      }
+      after && after();
+    };
+    if (animate && cell && cell.isConnected) animateHeight(el, el.offsetHeight, parseFloat(cell.style.height) || 0, finish);
+    else finish();
+  }
+
+  function toggleCard(article) {
+    if (article === floating) { closeCard(); return; }
+    const key = article.dataset.key;
+    if (floating) closeCard(false);
+    const fresh = app.querySelector(`.cslot > .box.card[data-key="${key}"]`);
+    if (fresh) openCard(fresh);
+  }
+
+  // Perdeye tıklanınca: altında başka kart varsa o açılır, yoksa açık kart kapanır
+  veil.addEventListener("click", (ev) => {
+    const under = document.elementsFromPoint(ev.clientX, ev.clientY)
+      .find((n) => n.classList && n.classList.contains("card") && n.classList.contains("box") && n !== floating);
+    if (under) toggleCard(under); else closeCard();
+  });
+  document.addEventListener("keydown", (ev) => { if (floating && ev.key === "Escape") closeCard(); });
 
   function renderCards() {
     const list = filteredCards();
@@ -626,7 +702,12 @@
           <button type="button" class="reset" id="creset">Temizle</button>
         </div>
       </section>
-      <div class="grid">${list.map(cardBox).join("") || `<div class="empty">Bu filtrelere uyan kart yok.</div>`}</div>`;
+      <div class="grid">${list.map((c) => `<div class="cslot">${cardBox(c)}</div>`).join("") || `<div class="empty">Bu filtrelere uyan kart yok.</div>`}</div>`;
+    floating = null;
+    if (openKey) {
+      const el = app.querySelector(`.cslot > .box.card[data-key="${openKey}"]`);
+      if (el) openCard(el, false); else openKey = null;
+    }
   }
 
   /* ---------------- PROFİL SAYFALARI ---------------- */
@@ -776,7 +857,7 @@
         <img src="assets/icon.png" alt="" class="dl-logo">
         <div class="dl-info">
           <h1>Uma Collector</h1>
-          <p>Umamusume: Pretty Derby ekranından <b>Umalarını</b>, <b>destek kartlarını</b> ve <b>Team Trials takımını</b> okuyup UmaUma'ya yükleyebileceğin dosyalara yazan Windows uygulaması.</p>
+          <p>Umamusume: Pretty Derby ekranından <b>Umalarını</b>, <b>destek kartlarını</b> ve <b>Team Trials takımını</b> okuyup bu siteye yükleyebileceğin dosyalara yazan Windows uygulaması.</p>
           <div class="dl-actions">
             <a class="dl-btn" href="${DOWNLOAD_URL}">${UPLOAD_ICON.replace('M12 3 6.5 8.5l1.4 1.4L11 6.8V15h2V6.8l3.1 3.1 1.4-1.4z', 'M12 15l5.5-5.5-1.4-1.4L13 11.2V3h-2v8.2L7.9 8.1 6.5 9.5z')}İndir</a>
             <span class="dl-meta">Windows 10 / 11 · zip · yaklaşık 34 MB</span>
@@ -933,7 +1014,7 @@
     authModal.innerHTML = `
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
         <button type="button" class="modal-x" data-authclose aria-label="Kapat">×</button>
-        <div class="modal-logo"><span class="l1">Uma</span><span class="l2">Uma</span></div>
+        <div class="modal-logo"><span class="l1">Uma</span><span class="l2">Collector</span></div>
         <h2 id="authTitle">${reg ? "Hesap Oluştur" : "Giriş Yap"}</h2>
         ${ready ? `<form class="auth-form" novalidate>
           <label>Kullanıcı adı<input name="u" autocomplete="username" maxlength="20" required></label>
@@ -1042,6 +1123,7 @@
 
   function render(keepFocus) {
     const r = route();
+    if (typeof setVeil === "function") { setVeil(false); }
     const tab = r.page === "uma" ? "umalar" : r.page;
     document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.page === tab));
     const focusId = keepFocus && document.activeElement && document.activeElement.id;
@@ -1050,8 +1132,8 @@
                     takim: renderTeam, profil: renderProfile, indir: renderDownload, umalar: renderUmas };
     pages[r.page]();
     const titles = { envanter: "Envanterim", takim: "Takımım", profil: "Profil", kartlar: "Kartlar", indir: "Uma Collector" };
-    document.title = r.page === "uma" && DATA.umaById[r.id] ? `${DATA.umaById[r.id].name} · UmaUma`
-      : titles[r.page] ? `${titles[r.page]} · UmaUma` : "UmaUma";
+    document.title = r.page === "uma" && DATA.umaById[r.id] ? `${DATA.umaById[r.id].name} · UmaCollector`
+      : titles[r.page] ? `${titles[r.page]} · UmaCollector` : "UmaCollector";
     if (focusId) {
       const el = document.getElementById(focusId);
       if (el) { el.focus(); if (caret != null && el.setSelectionRange) el.setSelectionRange(caret, caret); }
@@ -1121,15 +1203,15 @@
       return;
     }
     const box = ev.target.closest(".box.card");
-    if (box) { openKey = openKey === box.dataset.key ? null : box.dataset.key; render(); }
+    if (box) { toggleCard(box); return; }
+    if (floating && !ev.target.closest(".box.card")) closeCard();
   });
   app.addEventListener("keydown", (ev) => {
     const box = ev.target.classList && ev.target.classList.contains("card") ? ev.target : null;
     if (box && (ev.key === "Enter" || ev.key === " ")) {
       ev.preventDefault();
       const key = box.dataset.key;
-      openKey = openKey === key ? null : key;
-      render();
+      toggleCard(box);
       const again = app.querySelector(`.box[data-key="${key}"]`);
       if (again) again.focus();
     }

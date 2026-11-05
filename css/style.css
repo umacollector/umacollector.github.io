@@ -779,3 +779,18 @@ body.modal-open { overflow: hidden; }
   .pf-avatar { width: 84px; height: 84px; }
   .pf-id h1 { font-size: 22px; }
 }
+
+/* ---------- kart açılınca: üstte yüzen kutu + beyaz perde ---------- */
+.cslot { position: relative; }
+.box.card.float {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 31; cursor: default;
+  border-color: var(--pink); box-shadow: 0 18px 44px rgba(30, 20, 50, .22); transform: none;
+}
+.box.card.float:hover { transform: none; }
+.box.card.float .more { display: block; }
+.veil {
+  position: fixed; inset: 0; z-index: 30; background: #fff; opacity: 0; pointer-events: none;
+  transition: opacity .3s ease;
+}
+.veil.on { opacity: .7; pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .veil { transition: none; } }

@@ -1,4 +1,4 @@
-// UmaUma hesap sistemi (Firebase). Kullanıcı adı + şifre; kullanıcı adları arka planda iç bir
+// UmaCollector hesap sistemi (Firebase). Kullanıcı adı + şifre; kullanıcı adları arka planda iç bir
 // e-posta adresine çevrilir (kullaniciadi@<proje>.firebaseapp.com), şifreleri Firebase hash'leyerek saklar.
 // Aynı kullanıcı adı ikinci kez alınamaz, çünkü aynı iç adres ikinci kez açılamaz.
 //
