@@ -466,6 +466,22 @@ a.box { display: block; color: inherit; text-decoration: none; }
 
 @media (max-width: 900px) { .team { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); } }
 
+/* ---------- skill açıklama kutusu ---------- */
+.sktag, .sk[data-skill] { cursor: help; transition: background .12s, box-shadow .12s; }
+.sktag:hover, .sktag:focus-visible { background: var(--pink-soft); outline: none; box-shadow: inset 0 0 0 1.5px var(--pink); }
+.sk[data-skill]:hover, .sk[data-skill]:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--pink); }
+.tip {
+  position: absolute; z-index: 50; max-width: 300px; padding: 10px 14px;
+  background: #fff; color: var(--ink); border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(30, 20, 50, .18), inset 0 0 0 2px var(--pink-soft);
+  font-size: 13.5px; line-height: 1.4; pointer-events: none; animation: drop .12s ease-out;
+}
+.tip[hidden] { display: none; }
+.tip-h { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.tip-h img { width: 24px; height: 24px; }
+.tip-h b { font-weight: 900; color: var(--pink-deep); }
+.tip p { margin: 0; }
+
 .loading { padding: 40px 0; text-align: center; font-weight: 800; color: var(--ink-soft); }
 .foot { border-top: 1px solid var(--line); padding: 18px 0 28px; font-size: 13px; color: var(--ink-soft); }
 

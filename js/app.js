@@ -3,7 +3,7 @@
   "use strict";
 
   const app = document.getElementById("app");
-  const DATA = { umas: [], cards: [], effects: {}, guides: {}, cardById: {}, umaById: {} };
+  const DATA = { umas: [], cards: [], effects: {}, guides: {}, skills: {}, cardById: {}, umaById: {} };
 
   const GRADES = ["S", "A", "B", "C", "D", "E", "F", "G"];
   const gradeRank = (g) => { const i = GRADES.indexOf(g); return i < 0 ? 99 : i; };
@@ -145,6 +145,11 @@
 
   const fmtEffect = (e, v) => (v === null || v === undefined) ? "" : (e.id === 17 ? "Lv " + v : v + (e.pct ? "%" : ""));
 
+  /* ---------------- skill'ler ---------------- */
+  const skillName = (id) => (DATA.skills[id] || {}).name || "";
+  const skillDesc = (id) => { const s = DATA.skills[id] || {}; return s.tr || s.en || ""; };
+  const skillTag = (id) => `<span class="tag sktag" data-skill="${id}" tabindex="0">${esc(skillName(id))}</span>`;
+
   /* ---------------- ortak parçalar ---------------- */
   const chip = (label, on, data, extra = "") =>
     `<button type="button" class="chip ${extra} ${on ? "on" : ""}" ${data} aria-pressed="${on}">${label}</button>`;
@@ -183,7 +188,7 @@
     const min = gradeRank(umaState.minGrade);
     const list = DATA.umas.filter((u) => {
       if (umaState.guideOnly && !u.guide) return false;
-      if (q && !norm(`${u.name} ${u.title} ${u.unique?.name || ""}`).includes(q)) return false;
+      if (q && !norm(`${u.name} ${u.title} ${skillName(u.unique)}`).includes(q)) return false;
       if (umaState.stars.size && !umaState.stars.has(u.stars)) return false;
       for (const k of umaState.apt) if (gradeRank(u.apt[k]) > min) return false;
       return true;
@@ -251,7 +256,7 @@
   function skillChip(s) {
     const icon = s.icon ? `<img src="img/skill/${s.icon}.png" alt="" ${hideBroken}>` : "";
     const base = s.base ? `<span class="sk-base">${s.base.icon ? `<img src="img/skill/${s.base.icon}.png" alt="" ${hideBroken}>` : ""}önce: ${esc(s.base.name)}</span>` : "";
-    return `<li class="sk ${s.gold ? "gold" : ""}" title="${esc(s.desc || "")}">
+    return `<li class="sk ${s.gold ? "gold" : ""}" ${s.id ? `data-skill="${s.id}" tabindex="0"` : ""}>
       <span class="sk-main">${icon}<span>${esc(s.name)}</span></span>${base}</li>`;
   }
 
@@ -284,7 +289,7 @@
             <span class="htag green">${esc(g.scenario)}</span></div>` : ""}
           ${aptGrid(u, g ? g.focus.keys : [])}
           <div class="growth">${growthHtml(u)}</div>
-          ${u.unique ? `<div class="unique"><b>Özel skill: ${esc(u.unique.name)}</b><p>${esc(u.unique.desc)}</p></div>` : ""}
+          ${u.unique ? `<div class="unique"><b>Özel skill: ${esc(skillName(u.unique))}</b><p>${esc(skillDesc(u.unique))}</p></div>` : ""}
         </div>
       </section>`;
     if (!g) {
@@ -318,14 +323,12 @@
         </section>
         <section class="panel wide">
           <h2>Önerilen skill'ler</h2>
-          <p class="hint">Altın çerçeveliler altın skill. "önce" yazan skill, altın skill'in alt (beyaz) sürümüdür.</p>
           <div class="skcols">${skillCols}</div>
         </section>
         <section class="panel wide">
           <h2>Desteler</h2>
-          <p class="hint">Dağılım: ${esc(g.deck.mix)}. 6. slot arkadaştan ödünç alınabilen esnek slot, iki destede de kritik kart orada.</p>
           ${deckRow("Önerilen deste", g.deck.main, g.deck.flex)}
-          ${deckRow("Budget deste", g.deck.budget, g.deck.flex, g.deck.flex_note)}
+          ${g.deck.budget && g.deck.budget.length ? deckRow("Budget deste", g.deck.budget, g.deck.flex) : ""}
         </section>
         <section class="panel wide">
           <h2>Yedek kartlar</h2>
@@ -335,10 +338,8 @@
         <section class="panel wide">
           <h2>Veteran (ebeveyn) Umalar</h2>
           <div class="prio-row">${prio}</div>
-          <p class="hint">${esc(g.parents.priority_note || "")}</p>
           <h3>Pembe spark (uygunluk)</h3>
           <div class="taglist">${g.parents.pink.map((p) => `<span class="tag pinkt">${esc(p)}</span>`).join("")}</div>
-          ${g.parents.pink_note ? `<p class="hint">${esc(g.parents.pink_note)}</p>` : ""}
         </section>
         <p class="source">Kaynak: <a href="${esc(g.source.url)}" target="_blank" rel="noopener">${esc(g.source.name)}</a>, ${fmtDate(g.source.updated)} tarihli rehber. Notlar UmaUma tarafından özetlendi.</p>
       </div>`;
@@ -356,7 +357,7 @@
   function filteredCards() {
     const q = norm(cardState.q);
     const list = DATA.cards.filter((c) => {
-      if (q && !norm(`${c.name} ${c.title} ${c.hints.join(" ")} ${c.events.join(" ")}`).includes(q)) return false;
+      if (q && !norm(`${c.name} ${c.title} ${c.hints.map(skillName).join(" ")} ${c.events.map(skillName).join(" ")}`).includes(q)) return false;
       if (cardState.types.size && !cardState.types.has(c.type)) return false;
       if (cardState.rar.size && !cardState.rar.has(c.rarity)) return false;
       return true;
@@ -412,8 +413,8 @@
       <ul class="eff">${shown.map(row).join("")}${lockedRows}</ul>
       <div class="more">
         ${uniqueText(c)}
-        ${c.hints.length ? `<h4>Skill ipuçları</h4><div class="taglist">${c.hints.map((h) => `<span class="tag">${esc(h)}</span>`).join("")}</div>` : ""}
-        ${c.events.length ? `<h4>Olay skilleri</h4><div class="taglist">${c.events.map((h) => `<span class="tag">${esc(h)}</span>`).join("")}</div>` : ""}
+        ${c.hints.length ? `<h4>Skill ipuçları</h4><div class="taglist">${c.hints.map(skillTag).join("")}</div>` : ""}
+        ${c.events.length ? `<h4>Olay skilleri</h4><div class="taglist">${c.events.map(skillTag).join("")}</div>` : ""}
         <div class="date">Global çıkış: ${fmtDate(c.release)}</div>
         <div class="close-hint">Kapatmak için tekrar tıkla</div>
       </div>
@@ -686,6 +687,45 @@
     else if (ev.key === "ArrowDown") { ev.preventDefault(); items[(i + 1) % items.length].focus(); }
     else if (ev.key === "ArrowUp") { ev.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
   });
+
+  /* ---------------- skill açıklama kutusu ---------------- */
+  // Fareyle üstüne gelince, klavyeyle odaklanınca ya da dokununca skill'in Türkçe açıklaması çıkar.
+  const tip = document.createElement("div");
+  tip.className = "tip"; tip.setAttribute("role", "tooltip"); tip.hidden = true;
+  document.body.appendChild(tip);
+  let tipFor = null;
+
+  function showTip(el) {
+    const id = el.dataset.skill;
+    const s = DATA.skills[id];
+    if (!s) return;
+    tipFor = el;
+    tip.innerHTML = `<div class="tip-h">${s.icon ? `<img src="img/skill/${s.icon}.png" alt="" ${hideBroken}>` : ""}<b>${esc(s.name)}</b></div>
+      <p>${esc(skillDesc(id))}</p>`;
+    tip.hidden = false;
+    const r = el.getBoundingClientRect();
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+    let top = r.top - h - 10;
+    tip.classList.toggle("below", top < 8);
+    if (top < 8) top = r.bottom + 10;
+    tip.style.left = left + window.scrollX + "px";
+    tip.style.top = top + window.scrollY + "px";
+  }
+  function hideTip() { tip.hidden = true; tipFor = null; }
+
+  document.addEventListener("mouseover", (ev) => {
+    const el = ev.target.closest && ev.target.closest("[data-skill]");
+    if (el && el !== tipFor) showTip(el); else if (!el && tipFor && ev.pointerType !== "touch") hideTip();
+  });
+  document.addEventListener("focusin", (ev) => { const el = ev.target.closest && ev.target.closest("[data-skill]"); if (el) showTip(el); });
+  document.addEventListener("focusout", (ev) => { if (ev.target === tipFor) hideTip(); });
+  document.addEventListener("click", (ev) => {
+    const el = ev.target.closest && ev.target.closest("[data-skill]");
+    if (el) { ev.stopPropagation(); el === tipFor && !tip.hidden ? hideTip() : showTip(el); }
+    else if (tipFor) hideTip();
+  }, true);
+  window.addEventListener("scroll", () => { if (tipFor) hideTip(); }, { passive: true });
 
   /* ---------------- veri ---------------- */
   const D = window.UMAUMA_DATA;
