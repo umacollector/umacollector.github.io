@@ -6,10 +6,19 @@
 <title>UmaCollector</title>
 <meta name="description" content="Umamusume Global: tüm Umalar, destek kartları ve Team Trials rehberleri.">
 <link rel="icon" href="assets/icon.png">
+<script>
+  // Tema sayfa çizilmeden önce uygulanır (açılışta beyaz parlama olmasın)
+  (function () {
+    var t = null;
+    try { t = JSON.parse(localStorage.getItem("umauma.theme")); } catch (e) {}
+    if (t !== "dark" && t !== "light") t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?b=20261105060445">
+<link rel="stylesheet" href="css/style.css?b=20261105061340">
 </head>
 <body>
 <header class="top">
@@ -19,6 +28,9 @@
       <a class="tab" data-page="umalar" href="#umalar">Umalar</a>
       <a class="tab" data-page="kartlar" href="#kartlar">Kartlar</a>
     </nav>
+    <button type="button" class="theme-sw" id="themeSw" aria-label="Karanlık tema" aria-pressed="false" title="Tema">
+      <span class="ts-knob"><svg class="ts-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M11 1h2v4h-2zM11 19h2v4h-2zM1 11h4v2H1zM19 11h4v2h-4zM4.2 5.6l1.4-1.4 2.8 2.8-1.4 1.4zM15.6 17l1.4-1.4 2.8 2.8-1.4 1.4zM4.2 18.4l2.8-2.8 1.4 1.4-2.8 2.8zM15.6 7l2.8-2.8 1.4 1.4L17 8.4z"/></svg><svg class="ts-moon" viewBox="0 0 24 24"><path d="M14.5 2.5A9.5 9.5 0 1 0 21.5 17 8 8 0 0 1 14.5 2.5z"/></svg></span>
+    </button>
     <div class="profile">
       <button type="button" class="profile-btn" id="profileBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="profileMenu">
         <span class="avatar" aria-hidden="true">
@@ -33,6 +45,7 @@
   </div>
 </header>
 
+<button type="button" class="to-top" id="toTop" aria-label="Sayfanın başına dön"><svg viewBox="0 0 24 24"><path d="M5 15l7-7 7 7"/></svg></button>
 <main id="app" class="wrap">
   <p class="loading">Yükleniyor…</p>
 </main>
@@ -47,9 +60,9 @@
   </div>
 </footer>
 
-<script src="data/data.js?b=20261105060445"></script>
-<script src="js/firebase-config.js?b=20261105060445"></script>
-<script src="js/app.js?b=20261105060445"></script>
-<script type="module" src="js/auth.js?b=20261105060445"></script>
+<script src="data/data.js?b=20261105061340"></script>
+<script src="js/firebase-config.js?b=20261105061340"></script>
+<script src="js/app.js?b=20261105061340"></script>
+<script type="module" src="js/auth.js?b=20261105061340"></script>
 </body>
 </html>

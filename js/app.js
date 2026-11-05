@@ -919,112 +919,126 @@
                                                 epithet: r.epithet || "", points: r.points || 0 }));
   }
 
-  // Kart banner'ı: kart görseli, kullanıcının seçtiği yakınlık (zoom) ve konumla (x, y yüzde) gösterilir.
-  const BANNER_ASPECT = 1208 / 210;   // masaüstündeki banner'ın en/boy oranı
-  const bannerFrame = (b) => ({ x: b.x ?? 50, y: b.y ?? 25, zoom: b.zoom ?? 1 });
-  function cardBannerStyle(b) {
-    const f = bannerFrame(b);
-    return `background-image:url('img/card_l/${b.id}.webp');background-size:${(f.zoom * 100).toFixed(1)}% auto;background-position:${f.x.toFixed(1)}% ${f.y.toFixed(1)}%`;
+  /* ---------------- banner: arka plan gradyanı + Uma ya da kart görseli ---------------- */
+  const BANNER_PRESETS = {
+    sakura: ["Sakura", "135deg", "#ffd1e3", "#ffe9b8"],
+    gunbatimi: ["Gün batımı", "120deg", "#ff9a8b", "#ffd36e"],
+    seftali: ["Şeftali", "135deg", "#ffcfb0", "#ffb3c7"],
+    nane: ["Nane", "120deg", "#9be7c4", "#e3f7a8"],
+    gokyuzu: ["Gökyüzü", "135deg", "#bfe6ff", "#e6dcff"],
+    okyanus: ["Okyanus", "120deg", "#62c6e8", "#a68bff"],
+    lavanta: ["Lavanta", "135deg", "#c9b6ff", "#ffc7e8"],
+    gece: ["Gece", "135deg", "#272552", "#7b4fd6"],
+  };
+  const bannerSubject = (b) => b && (b.kind === "card" ? DATA.cardById[b.id] : DATA.umaById[b.id]);
+  // Otomatik: kartın (ya da Uma'nın kıyafetinin) renkleri, temaya uyması için yüzeyle yumuşatılır
+  function autoGradient(b) {
+    const sub = bannerSubject(b);
+    const pal = (sub && sub.pal) || ["#ff5fa2", "#ffcf3a", "#2fbf71"];
+    const soft = (c, pct) => `color-mix(in srgb, ${c} ${pct}%, var(--surface))`;
+    return `linear-gradient(120deg, ${soft(pal[0], 62)} 0%, ${soft(pal[1] || pal[0], 48)} 55%, ${soft(pal[2] || pal[0], 58)} 100%)`;
   }
-
-  // Kart seçilince açılan pencere: banner'da kartın hangi kısmının görüneceği ayarlanır
-  function openBannerEditor(cardId) {
-    const cur = AUTH.profile && AUTH.profile.banner;
-    const f = cur && cur.kind === "card" && cur.id === cardId ? bannerFrame(cur) : { x: 50, y: 25, zoom: 1 };
-    const c = DATA.cardById[cardId];
-    const bg = document.createElement("div");
-    bg.className = "modal-bg";
-    bg.innerHTML = `
-      <div class="modal wide-modal" role="dialog" aria-modal="true" aria-labelledby="beTitle">
-        <button type="button" class="modal-x" data-beclose aria-label="Kapat">×</button>
-        <h2 id="beTitle">Banner'ı ayarla</h2>
-        <p class="auth-hint be-sub">${esc(c.name)} ${esc(c.title)}</p>
-        <div class="be-preview" aria-label="Banner önizlemesi"></div>
-        <div class="be-body">
-          <div class="be-card"><img src="img/card_l/${cardId}.webp" alt="" draggable="false"><span class="be-frame"></span></div>
-          <div class="be-side">
-            <p class="auth-hint">Çerçeveyi ya da üstteki önizlemeyi sürükleyerek kartın banner'da görünecek kısmını seç.</p>
-            <label class="be-zoom">Yakınlaştır<input type="range" min="1" max="2" step="0.01" value="${f.zoom}"></label>
-            <div class="be-actions">
-              <button type="button" class="reset" data-bereset>Ortala</button>
-              <button type="button" class="auth-go" data-besave>Kaydet</button>
-            </div>
-          </div>
-        </div>
-      </div>`;
-    document.body.appendChild(bg);
-    document.body.classList.add("modal-open");
-    const prev = bg.querySelector(".be-preview"), img = bg.querySelector(".be-card img");
-    const frame = bg.querySelector(".be-frame"), zoomIn = bg.querySelector(".be-zoom input");
-    const ratio = () => (img.naturalHeight && img.naturalWidth ? img.naturalHeight / img.naturalWidth : 600 / 450);
-    // Görünen alanın kart görseline oranı (0-1)
-    const rect = () => {
-      const w = 1 / f.zoom, h = Math.min(1, 1 / (f.zoom * ratio() * BANNER_ASPECT));
-      return { w, h, left: (f.x / 100) * (1 - w), top: (f.y / 100) * (1 - h) };
-    };
-    const draw = () => {
-      prev.setAttribute("style", cardBannerStyle({ id: cardId, ...f }));
-      const r = rect();
-      Object.assign(frame.style, { left: r.left * 100 + "%", top: r.top * 100 + "%", width: r.w * 100 + "%", height: r.h * 100 + "%" });
-    };
-    const clamp = (v) => Math.max(0, Math.min(100, v));
-    // Sürükleme: önizlemede resim elle tutulup çekilir gibi, kart üzerinde çerçeve taşınır gibi
-    function drag(el, sign) {
-      el.addEventListener("pointerdown", (ev) => {
-        ev.preventDefault();
-        el.setPointerCapture(ev.pointerId);
-        let lx = ev.clientX, ly = ev.clientY;
-        const move = (e) => {
-          const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
-          const r = rect();
-          if (sign < 0) {   // önizleme: piksel → görsel üzerindeki kayma
-            const pw = prev.clientWidth, imgW = pw * f.zoom, imgH = imgW * ratio();
-            if (imgW > pw) f.x = clamp(f.x - dx / (imgW - pw) * 100);
-            if (imgH > prev.clientHeight) f.y = clamp(f.y - dy / (imgH - prev.clientHeight) * 100);
-          } else {          // çerçeve: kart görseli üzerindeki kayma
-            const cw = img.clientWidth, ch = img.clientHeight;
-            if (r.w < 1) f.x = clamp(f.x + dx / (cw * (1 - r.w)) * 100);
-            if (r.h < 1) f.y = clamp(f.y + dy / (ch * (1 - r.h)) * 100);
-          }
-          draw();
-        };
-        const up = () => { el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.classList.remove("dragging"); };
-        el.classList.add("dragging");
-        el.addEventListener("pointermove", move);
-        el.addEventListener("pointerup", up);
-      });
+  function bannerBg(b) {
+    const bg = (b && b.bg) || { mode: "auto" };
+    if (bg.mode === "preset" && BANNER_PRESETS[bg.preset]) {
+      const [, ang, c1, c2] = BANNER_PRESETS[bg.preset];
+      return `linear-gradient(${ang}, ${c1}, ${c2})`;
     }
-    drag(prev, -1);
-    drag(bg.querySelector(".be-card"), 1);
-    zoomIn.addEventListener("input", () => { f.zoom = Number(zoomIn.value); draw(); });
-    const close = () => { bg.remove(); document.body.classList.remove("modal-open"); document.removeEventListener("keydown", esc_); };
-    const esc_ = (e) => { if (e.key === "Escape") close(); };
-    document.addEventListener("keydown", esc_);
-    bg.addEventListener("click", (ev) => {
-      if (ev.target === bg || ev.target.closest("[data-beclose]")) close();
-      else if (ev.target.closest("[data-bereset]")) { Object.assign(f, { x: 50, y: 25, zoom: 1 }); zoomIn.value = 1; draw(); }
-      else if (ev.target.closest("[data-besave]")) {
-        const r2 = (v) => Math.round(v * 10) / 10;
-        window.UmaAuth.saveProfile({ banner: { kind: "card", id: cardId, x: r2(f.x), y: r2(f.y), zoom: Math.round(f.zoom * 100) / 100 } }).catch(() => {});
-        close();
-      }
-    });
-    if (img.complete) draw(); else img.addEventListener("load", draw);
-    draw();
+    if (bg.mode === "custom" && /^#[0-9a-f]{6}$/i.test(bg.a || "") && /^#[0-9a-f]{6}$/i.test(bg.b || ""))
+      return `linear-gradient(${Number(bg.angle) || 0}deg, ${bg.a}, ${bg.b})`;
+    return autoGradient(b);
   }
 
   function bannerHtml(b) {
-    if (!b) return `<div class="pf-banner empty"></div>`;
-    if (b.kind === "card" && DATA.cardById[b.id])
-      return `<div class="pf-banner card" style="${cardBannerStyle(b)}"></div>`;
-    if (b.kind === "uma" && DATA.umaById[b.id])
-      return `<div class="pf-banner uma"><img src="${umaImg(DATA.umaById[b.id], true)}" alt=""></div>`;
-    return `<div class="pf-banner empty"></div>`;
+    const sub = bannerSubject(b);
+    if (!b || !sub) return `<div class="pf-banner empty"></div>`;
+    const img = b.kind === "card"
+      ? `<img class="pf-card" src="img/card_l/${b.id}.webp" alt="" onerror="this.src='img/card/${b.id}.png'">`
+      : `<img class="pf-uma" src="${umaImg(sub, true)}" alt="">`;
+    return `<div class="pf-banner ${b.kind}" style="background:${bannerBg(b)}"><span class="pf-shine"></span>${img}</div>`;
   }
 
+  // Banner seçilince açılan pencere: arka plan rengi (Otomatik, hazır gradyanlar ya da özel gradyan)
+  function openBannerEditor(kind, id) {
+    const cur = AUTH.profile && AUTH.profile.banner;
+    const same = cur && cur.kind === kind && cur.id === id;
+    const draft = { kind, id, bg: same && cur.bg ? { ...cur.bg } : { mode: "auto" } };
+    if (!draft.bg.a) Object.assign(draft.bg, { a: "#ff9ac4", b: "#ffe08a", angle: 120 });
+    const sub = bannerSubject(draft);
+    const bg = document.createElement("div");
+    bg.className = "modal-bg";
+    const swatch = (mode, key, label, css) =>
+      `<button type="button" class="bn-sw" data-bnmode="${mode}" ${key ? `data-bnpreset="${key}"` : ""} title="${esc(label)}">
+        <span class="bn-chip" style="background:${css}"></span><span class="bn-lab">${esc(label)}</span></button>`;
+    bg.innerHTML = `
+      <div class="modal wide-modal" role="dialog" aria-modal="true" aria-labelledby="bnTitle">
+        <button type="button" class="modal-x" data-bnclose aria-label="Kapat">×</button>
+        <h2 id="bnTitle">Banner'ı ayarla</h2>
+        <p class="auth-hint be-sub">${esc(sub.name)} ${esc(sub.title)}</p>
+        <div class="bn-preview"></div>
+        <h3 class="bn-h">Arka plan</h3>
+        <div class="bn-grid">
+          ${swatch("auto", "", "Otomatik", autoGradient(draft))}
+          ${Object.entries(BANNER_PRESETS).map(([k, [lab, ang, c1, c2]]) => swatch("preset", k, lab, `linear-gradient(${ang}, ${c1}, ${c2})`)).join("")}
+          <button type="button" class="bn-sw" data-bnmode="custom" title="Özel"><span class="bn-chip custom"></span><span class="bn-lab">Özel</span></button>
+        </div>
+        <div class="bn-custom">
+          <label>Renk 1<input type="color" data-bnc="a" value="${draft.bg.a}"></label>
+          <label>Renk 2<input type="color" data-bnc="b" value="${draft.bg.b}"></label>
+          <label class="bn-angle">Açı <b>${draft.bg.angle}°</b><input type="range" min="0" max="360" step="5" value="${draft.bg.angle}" data-bnc="angle"></label>
+        </div>
+        <div class="be-actions"><button type="button" class="reset" data-bnclose>Vazgeç</button><button type="button" class="auth-go" data-bnsave>Kaydet</button></div>
+      </div>`;
+    document.body.appendChild(bg);
+    document.body.classList.add("modal-open");
+    const prev = bg.querySelector(".bn-preview"), custom = bg.querySelector(".bn-custom");
+    const draw = () => {
+      prev.innerHTML = bannerHtml(draft);
+      bg.querySelectorAll(".bn-sw").forEach((el) => el.classList.toggle("on",
+        el.dataset.bnmode === draft.bg.mode && (draft.bg.mode !== "preset" || el.dataset.bnpreset === draft.bg.preset)));
+      custom.classList.toggle("open", draft.bg.mode === "custom");
+      bg.querySelector(".bn-chip.custom").style.background = `linear-gradient(${draft.bg.angle}deg, ${draft.bg.a}, ${draft.bg.b})`;
+      bg.querySelector(".bn-angle b").textContent = `${draft.bg.angle}°`;
+    };
+    const close = () => { bg.remove(); document.body.classList.remove("modal-open"); document.removeEventListener("keydown", onKey); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+    bg.addEventListener("click", (ev) => {
+      const sw = ev.target.closest("[data-bnmode]");
+      if (sw) { draft.bg.mode = sw.dataset.bnmode; if (sw.dataset.bnpreset) draft.bg.preset = sw.dataset.bnpreset; draw(); return; }
+      if (ev.target === bg || ev.target.closest("[data-bnclose]")) { close(); return; }
+      if (ev.target.closest("[data-bnsave]")) {
+        const out = { mode: draft.bg.mode };
+        if (out.mode === "preset") out.preset = draft.bg.preset;
+        if (out.mode === "custom") Object.assign(out, { a: draft.bg.a, b: draft.bg.b, angle: Number(draft.bg.angle) });
+        window.UmaAuth.saveProfile({ banner: { kind, id, bg: out } }).catch(() => {});
+        close();
+      }
+    });
+    bg.addEventListener("input", (ev) => {
+      const k = ev.target.dataset.bnc;
+      if (!k) return;
+      draft.bg[k] = k === "angle" ? Number(ev.target.value) : ev.target.value;
+      draft.bg.mode = "custom";
+      draw();
+    });
+    draw();
+  }
+
+  // İsim kutusu: profil fotoğrafındaki Uma'nın kıyafet rengi, yazı rengi okunurluğa göre
+  function nameChipStyle(avatarId) {
+    const u = DATA.umaById[avatarId];
+    const c = (u && u.pal && u.pal[0]) || "#ff5fa2";
+    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255);
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+    return `background:${c};color:${lum > 0.58 ? "#1b1b1f" : "#ffffff"}`;
+  }
+
+  // Profil fotoğrafı: Uma görseli yüze yakın kırpılır (büyük görselden, net olsun)
+  const faceImg = (u) => `<img class="face-img" src="${umaImg(u, true)}" alt="" loading="lazy">`;
   function avatarHtml(id, cls = "pf-avatar") {
     const u = DATA.umaById[id];
-    return u ? `<img class="${cls}" src="${umaImg(u)}" alt="">`
+    return u ? `<span class="${cls} face">${faceImg(u)}</span>`
              : `<span class="${cls} none"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.2" fill="currentColor"/><path d="M3.5 21c.8-4.6 4.3-7 8.5-7s7.7 2.4 8.5 7z" fill="currentColor"/></svg></span>`;
   }
 
@@ -1059,7 +1073,7 @@
     const ownedUmas = (INV.umas?.rows || []).map((r) => DATA.umaById[r.id]).filter(Boolean);
     const ownedCards = (INV.cards?.rows || []).map((r) => DATA.cardById[r.id]).filter(Boolean)
       .sort((a, b) => RARITIES.indexOf(a.rarity) - RARITIES.indexOf(b.rarity));
-    const pickUma = (u, attr, on) => `<button type="button" class="pk ${on ? "on" : ""}" ${attr}="${u.id}" title="${esc(u.name + " " + u.title)}"><img src="${umaImg(u)}" alt=""></button>`;
+    const pickUma = (u, attr, on) => `<button type="button" class="pk face ${on ? "on" : ""}" ${attr}="${u.id}" title="${esc(u.name + " " + u.title)}">${faceImg(u)}</button>`;
     const pickCard = (c, on) => `<button type="button" class="pk card ${on ? "on" : ""}" data-pbanner="card" data-pid="${c.id}" title="${esc(c.name + " " + c.title)}"><img src="${cardImg(c)}" alt=""></button>`;
     const b = pr.banner || null;
     const bannerPicks = bannerTab === "uma"
@@ -1074,7 +1088,7 @@
         <div class="pf-head">
           ${avatarHtml(pr.avatar)}
           <div class="pf-id">
-            <h1>${esc(pr.username || "")}</h1>
+            <h1><span class="pf-name" style="${nameChipStyle(pr.avatar)}">${esc(pr.username || "")}</span></h1>
             <div class="pf-stats"><span>${umaCount} Uma</span><span>${cardCount} kart</span>${total ? `<span>${total.toLocaleString("tr-TR")} takım puanı</span>` : ""}</div>
           </div>
         </div>
@@ -1258,7 +1272,7 @@
     if (pa) { window.UmaAuth.saveProfile({ avatar: Number(pa.dataset.pavatar) }).catch(() => {}); return; }
     const pb = ev.target.closest && ev.target.closest("[data-pbanner]");
     if (pb) {
-      if (pb.dataset.pbanner === "card") { openBannerEditor(Number(pb.dataset.pid)); return; }
+      if (pb.dataset.pbanner !== "none") { openBannerEditor(pb.dataset.pbanner, Number(pb.dataset.pid)); return; }
       const banner = pb.dataset.pbanner === "none" ? null : { kind: pb.dataset.pbanner, id: Number(pb.dataset.pid) };
       window.UmaAuth.saveProfile({ banner }).catch(() => {}); return;
     }
@@ -1337,9 +1351,10 @@
     nameEl.textContent = u ? AUTH.profile.username : "Profil";
     const av = pBtn.querySelector(".avatar");
     const pu = u && DATA.umaById[AUTH.profile.avatar];
-    av.innerHTML = pu ? `<img src="${umaImg(pu)}" alt="">`
+    av.innerHTML = pu ? faceImg(pu)
       : `<svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="8" r="4.2" fill="currentColor"/><path d="M3.5 21c.8-4.6 4.3-7 8.5-7s7.7 2.4 8.5 7z" fill="currentColor"/></svg>`;
     av.classList.toggle("has-img", !!pu);
+    av.classList.toggle("face", !!pu);
   }
   function openMenu() {
     pMenu.hidden = false; pBtn.setAttribute("aria-expanded", "true");
@@ -1355,6 +1370,31 @@
     else if (ev.key === "ArrowDown") { ev.preventDefault(); items[(i + 1) % items.length].focus(); }
     else if (ev.key === "ArrowUp") { ev.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
   });
+
+  /* ---------------- tema ---------------- */
+  const themeSw = document.getElementById("themeSw");
+  function syncThemeSw() {
+    const dark = document.documentElement.getAttribute("data-theme") === "dark";
+    themeSw.setAttribute("aria-pressed", String(dark));
+    themeSw.setAttribute("aria-label", dark ? "Açık temaya geç" : "Karanlık temaya geç");
+  }
+  themeSw.addEventListener("click", () => {
+    const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    store.set("theme", next);
+    syncThemeSw();
+  });
+  syncThemeSw();
+
+  /* ---------------- yukarı çık düğmesi ---------------- */
+  const toTop = document.getElementById("toTop");
+  const syncToTop = () => toTop.classList.toggle("show", window.scrollY > 500);
+  window.addEventListener("scroll", syncToTop, { passive: true });
+  toTop.addEventListener("click", () => {
+    const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+  });
+  syncToTop();
 
   /* ---------------- skill açıklama kutusu ---------------- */
   // Fareyle üstüne gelince, klavyeyle odaklanınca ya da dokununca skill'in Türkçe açıklaması çıkar.
