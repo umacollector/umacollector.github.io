@@ -618,7 +618,7 @@
     const c = DATA.cardById[Number(article.dataset.key.slice(1))];
     if (!c) return;
     const cell = article.parentElement;
-    const h0 = article.offsetHeight;
+    const h0 = article.getBoundingClientRect().height;   // kesirli yükseklik: alttaki kartlar 1px bile kaymasın
     cell.style.height = h0 + "px";
     const tmp = document.createElement("div");
     tmp.innerHTML = cardBox(c, true).trim();
