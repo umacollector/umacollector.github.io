@@ -631,15 +631,22 @@
   /* ---------------- PROFİL SAYFALARI ---------------- */
   let lastMsg = null;
 
-  function dropZone(id, title, file, desc) {
-    return `<label class="drop" for="${id}" data-drop="1">
+  const UPLOAD_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 6.5 8.5l1.4 1.4L11 6.8V15h2V6.8l3.1 3.1 1.4-1.4z"/><path d="M5 17h14v3H5z"/></svg>`;
+  const fmtStamp = (d) => { const m = String(d || "").match(/(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)/); return m ? `${m[3]}.${m[2]}.${m[1]} ${m[4]}` : ""; };
+
+  // Küçük yükleme kutusu: tıkla ya da dosyayı üstüne sürükle
+  function uploadBox(id, title, file, state) {
+    return `<label class="up ${state ? "done" : ""}" for="${id}" data-drop="1">
       <input type="file" id="${id}" accept=".txt,text/plain" multiple hidden>
-      <span class="drop-ico" aria-hidden="true">⬆</span>
-      <span class="drop-t">${title}</span>
-      <span class="drop-f">${file}</span>
-      <span class="hint">${desc}</span>
+      <span class="up-ico">${UPLOAD_ICON}</span>
+      <span class="up-txt"><b>${title}</b><small>${file}</small></span>
+      <span class="up-state">${state || "Yüklenmedi"}</span>
+      <span class="up-btn">${state ? "Yenile" : "Dosya seç"}</span>
     </label>`;
   }
+
+  const uploadHelp = `<p class="up-help">Bu dosyaları <b>Uma Collector</b> uygulaması oluşturur. Kutuya tıkla ya da dosyayı üstüne sürükle. Yüklediklerin bu tarayıcıda saklanır.
+    <a class="up-link" href="#indir">Uygulamayı indir →</a></p>`;
 
   function msgHtml() {
     // Mesaj sayfadan ayrılana kadar yerinde kalır (düğmelere basınca kaybolup sayfayı kaydırmasın)
@@ -647,7 +654,6 @@
     return `<div class="msg ${lastMsg.ok ? "ok" : "err"}">${esc(lastMsg.msg)}</div>`;
   }
 
-  const localNote = `<p class="hint">Yüklediğin dosyalar şimdilik sadece bu tarayıcıda saklanıyor. Hesap sistemi gelince giriş yaptığın her cihazda görünecek.</p>`;
 
   function renderInventory() {
     const u = INV.umas, c = INV.cards;
@@ -677,12 +683,11 @@
     app.innerHTML = `
       <div class="page-head"><h1>Envanterim</h1></div>
       ${msgHtml()}
-      <section class="drops">
-        ${dropZone("fUmas", "Umalarını yükle", "umauma.txt", u ? `${u.rows.length} Uma · okuma ${esc(u.date)}` : "Henüz yüklenmedi")}
-        ${dropZone("fCards", "Kartlarını yükle", "umacard.txt", c ? `${c.rows.length} kart · okuma ${esc(c.date)}` : "Henüz yüklenmedi")}
+      <section class="uploads">
+        ${uploadBox("fUmas", "Umalar", "umauma.txt", u ? `${u.rows.length} Uma · ${fmtStamp(u.date)}` : "")}
+        ${uploadBox("fCards", "Kartlar", "umacard.txt", c ? `${c.rows.length} kart · ${fmtStamp(c.date)}` : "")}
       </section>
-      <p class="hint">Dosyalar Uma Collector'ın export klasöründe: D:\\UmaCollector\\Collector\\export. Kutuya tıkla ya da dosyayı üstüne sürükle.</p>
-      ${localNote}
+      ${uploadHelp}
       ${u ? `<section class="panel inv-sec"><h2>Umalarım <span class="count">${u.rows.length} / ${DATA.umas.length}</span></h2>
         <div class="inv-grid umas">${umaTiles}</div></section>` : ""}
       ${c ? `<section class="panel inv-sec"><h2>Kartlarım <span class="count">${c.rows.length} / ${DATA.cards.length}</span></h2>
@@ -749,16 +754,78 @@
     app.innerHTML = `
       <div class="page-head"><h1>Takımım</h1>${t ? `<span class="count">Toplam ${total.toLocaleString("tr-TR")} puan</span>` : ""}</div>
       ${msgHtml()}
-      <section class="drops one">
-        ${dropZone("fTeam", "Takımını yükle", "umateam.txt", t ? `${t.rows.length} Uma · okuma ${esc(t.date)}` : "Henüz yüklenmedi")}
+      <section class="uploads one">
+        ${uploadBox("fTeam", "Takım", "umateam.txt", t ? `${t.rows.length} Uma · ${fmtStamp(t.date)}` : "")}
       </section>
-      ${localNote}
+      ${uploadHelp}
       ${t ? `<div class="team-bar">
           <button type="button" class="toggle ${teamCompare ? "on" : ""}" id="teamCompare" aria-pressed="${teamCompare}">
             <span class="knob" aria-hidden="true"></span>Önerilen statlarla karşılaştır</button>
         </div>
         <section class="team ${teamAnim ? "anim" : ""}">${cats.map(col).join("")}</section>
         <button type="button" class="reset danger" id="teamClear">Takımı bu tarayıcıdan sil</button>` : ""}`;
+  }
+
+  const DOWNLOAD_URL = "https://github.com/umacollector/uma-collector/releases/latest/download/UmaCollector.zip";
+
+  function renderDownload() {
+    const step = (n, title, body) => `<li class="step"><span class="step-n">${n}</span><div><h3>${title}</h3>${body}</div></li>`;
+    app.innerHTML = `
+      <section class="dl-hero">
+        <img src="assets/icon.png" alt="" class="dl-logo">
+        <div class="dl-info">
+          <h1>Uma Collector</h1>
+          <p>Umamusume: Pretty Derby ekranından <b>Umalarını</b>, <b>destek kartlarını</b> ve <b>Team Trials takımını</b> okuyup UmaUma'ya yükleyebileceğin dosyalara yazan Windows uygulaması.</p>
+          <div class="dl-actions">
+            <a class="dl-btn" href="${DOWNLOAD_URL}">${UPLOAD_ICON.replace('M12 3 6.5 8.5l1.4 1.4L11 6.8V15h2V6.8l3.1 3.1 1.4-1.4z', 'M12 15l5.5-5.5-1.4-1.4L13 11.2V3h-2v8.2L7.9 8.1 6.5 9.5z')}İndir</a>
+            <span class="dl-meta">Windows 10 / 11 · zip · yaklaşık 34 MB</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="guide dl-guide">
+        <section class="panel">
+          <h2>Gerekenler</h2>
+          <ul class="notes">
+            <li>Windows 10 ya da 11.</li>
+            <li>Oyunun Steam'deki Global sürümü.</li>
+            <li>Oyun <b>1920×1080 tam ekran</b> ve Windows ekran ölçeği <b>%100</b> olmalı.</li>
+            <li>Python ya da başka bir kurulum gerekmez.</li>
+          </ul>
+        </section>
+        <section class="panel">
+          <h2>Kurulum</h2>
+          <ul class="notes">
+            <li>İndirdiğin zip'i istediğin bir klasöre çıkar.</li>
+            <li>Klasördeki <b>UmaCollector.exe</b>'yi çalıştır.</li>
+            <li>Windows "bilinmeyen yayımcı" uyarısı verirse <b>Ek bilgi</b> ve sonra <b>Yine de çalıştır</b>'a bas.</li>
+          </ul>
+        </section>
+
+        <section class="panel wide">
+          <h2>Nasıl kullanılır</h2>
+          <ol class="steps">
+            ${step(1, "Oyunu hazırla", "<p>Oyunu 1920×1080 tam ekranda aç ve <b>ana menüye</b> gel. Takımını okutacaksan <b>Race › Team Trials</b> ekranında dur.</p>")}
+            ${step(2, "Okumayı başlat", "<p><b>Umaları Oku</b>, <b>Kartları Oku</b> ya da ikisini birden yapan <b>Tümünü Oku</b>'ya bas. Takım için <b>Takımı Oku</b>. Uygulama kendini küçültür ve menülerde kendisi gezer.</p>")}
+            ${step(3, "Dokunma, bekle", "<p>Okuma sürerken fareye ve klavyeye dokunma. Durdurmak için <b>F10</b>'a bas. Başka bir pencereye geçersen uygulama güvenlik için kendiliğinden durur.</p>")}
+            ${step(4, "Kart filtresi", "<p>Sadece güçlü kartlarını güncellemek istersen <b>Okunacak kartlar</b>'dan <b>SR ve üstü</b> ya da <b>Sadece SSR</b> seç. Oyundaki kart listesi <b>Rarity / Desc</b> sırasında olmalı. Okunmayan nadirliklerin önceki kaydı korunur.</p>")}
+            ${step(5, "Dosyaları bul", "<p>Okuma bitince <b>umauma.txt</b>, <b>umacard.txt</b> ya da <b>umateam.txt</b> uygulama klasöründeki <b>Export</b> klasörüne yazılır. <b>Export klasörünü aç</b> düğmesiyle açabilirsin. Başka bir klasör istersen <b>Ayarlar</b>'dan seç.</p>")}
+            ${step(6, "Siteye yükle", `<p>Umalarını ve kartlarını <a href="#envanter">Envanterim</a>'e, takımını <a href="#takim">Takımım</a>'a yükle. Kartlar yüklüyse her rehberde senin kartlarınla kurulan bir deste de görünür.</p>`)}
+          </ol>
+        </section>
+
+        <section class="panel wide">
+          <h2>Sorun çözme</h2>
+          <ul class="notes">
+            <li><b>"… ekranı gelmedi"</b> hatası: Oyunun doğru ekranda olduğundan emin ol, tekrar dene. Neler olduğunu <b>Log klasörünü aç</b> ile adım adım ekran görüntülerinde görebilirsin.</li>
+            <li><b>Tıklamalar oyuna gitmiyor:</b> UmaCollector.exe'ye sağ tıklayıp <b>Yönetici olarak çalıştır</b>.</li>
+            <li><b>Filtreli kart okuması hemen duruyor:</b> Oyundaki kart listesinin altındaki sıralamayı <b>Rarity</b> ve <b>Desc</b> yap.</li>
+            <li><b>Bir isim yanlış okunmuş:</b> Uygulama okuduklarını oyunun resmi listeleriyle düzeltir. Yine de hatalı bir satır görürsen o okumayı tekrarla.</li>
+          </ul>
+        </section>
+
+        <p class="source">Uma Collector oyunun dosyalarına ya da internet trafiğine dokunmaz. Sadece ekranı okur ve menülerde tıklar. Yine de otomatik araç kullanımı oyunun kullanım şartlarına aykırı sayılabilir, kendi sorumluluğunda kullan.</p>
+      </div>`;
   }
 
   function renderLogin() {
@@ -788,7 +855,7 @@
     const h = location.hash;
     const m = h.match(/^#uma\/(\d+)$/);
     if (m) return { page: "uma", id: Number(m[1]) };
-    if (h === "#envanter" || h === "#takim" || h === "#giris" || h === "#kartlar") return { page: h.slice(1) };
+    if (["#envanter", "#takim", "#giris", "#kartlar", "#indir"].includes(h)) return { page: h.slice(1) };
     return { page: "umalar" };
   }
 
@@ -799,9 +866,9 @@
     const focusId = keepFocus && document.activeElement && document.activeElement.id;
     const caret = focusId && document.activeElement.selectionStart;
     const pages = { uma: () => renderUmaPage(r.id), kartlar: renderCards, envanter: renderInventory,
-                    takim: renderTeam, giris: renderLogin, umalar: renderUmas };
+                    takim: renderTeam, giris: renderLogin, indir: renderDownload, umalar: renderUmas };
     pages[r.page]();
-    const titles = { envanter: "Envanterim", takim: "Takımım", giris: "Giriş Yap", kartlar: "Kartlar" };
+    const titles = { envanter: "Envanterim", takim: "Takımım", giris: "Giriş Yap", kartlar: "Kartlar", indir: "Uma Collector" };
     document.title = r.page === "uma" && DATA.umaById[r.id] ? `${DATA.umaById[r.id].name} · UmaUma`
       : titles[r.page] ? `${titles[r.page]} · UmaUma` : "UmaUma";
     if (focusId) {
