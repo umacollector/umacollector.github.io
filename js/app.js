@@ -275,10 +275,10 @@
       <span class="sk-main">${icon}<span>${esc(s.name)}</span></span>${base}</li>`;
   }
 
-  function deckRow(title, ids, flex, note) {
+  function deckRow(title, ids, flex, note, headExtra) {
     const slots = ids.map((id) => cardMini(id)).join("");
     return `<div class="deck">
-      <h3>${title}</h3>
+      <div class="deck-head"><h3>${title}</h3>${headExtra || ""}</div>
       <div class="deck-row">${slots}
         <div class="flex-slot">${cardMini(flex, "key")}<span class="flex-tag">6. slot · esnek</span><span class="key-tag">★ Kritik kart</span></div>
       </div>
@@ -286,29 +286,57 @@
     </div>`;
   }
 
-  // Envanterden deste: rehberin ana destesindeki türleri izler. Her slot için önce ana deste, sonra
-  // budget, sonra yedek listedeki kartlardan sende olan; hiçbiri yoksa o türde sendeki en güçlü kart.
-  // Oyundaki gibi aynı karakterden iki kart olmaz. 6. slot yine kritik kart (yoksa ödünç alınır).
+  // Özel bonusun (Lvl'de açılan) kabaca karşılığı: hangi etkiyi ne kadar verdiği. Koşullu olanlar
+  // ortalama bir değerle sayılır (ör. "en fazla %20" → 10).
+  function uniqueBonus(c) {
+    const out = [];
+    (c.unique ? c.unique.effects : []).forEach((e) => {
+      const v = e.value, v1 = e.value_1, v2 = e.value_2, v3 = e.value_3, v4 = e.value_4;
+      if (e.type < 100) out.push([e.type, v]);
+      else if (e.type === 101) { out.push([v1, v2]); if (v3) out.push([v3, v4]); }
+      else if (e.type === 102 || e.type === 103) out.push([8, v1]);
+      else if (e.type === 104) out.push([8, v1 / 2]);
+      else if (e.type === 106) out.push([v1, (v * v2) / 2]);
+      else if (e.type === 108) out.push([v, v3]);
+      else if (e.type === 109) out.push([v, 600 / v1 / 2]);
+      else if ([110, 111, 113, 115, 122].includes(e.type)) out.push([v, v1]);
+      else if (e.type === 114) out.push([v, (v1 + v2) / 2]);
+    });
+    return out;
+  }
+
+  // Envanterden deste: rehberin ana destesindeki türleri izler. Her slot için o türde sendeki en güçlü
+  // kart seçilir; güç, kartın SENDEKİ seviyesindeki etkileri (açıksa özel bonus dahil). Rehberin ana
+  // destesi, budget destesi ve yedek listesinde olmak küçük bir artı puan verir, yakın güçte olanlar
+  // arasında rehberin önerdiği seçilir. Aynı karakterden iki kart olmaz. 6. slot yine kritik kart.
   function inventoryDeck(g) {
     const owned = [...ownedCard.values()].filter((r) => DATA.cardById[r.id]);
-    const tier = new Map();
-    g.deck.main.forEach((cid) => tier.set(cid, 0));
-    (g.deck.budget || []).forEach((cid) => { if (!tier.has(cid)) tier.set(cid, 1); });
-    Object.values(g.alternates || {}).flat().forEach((cid) => { if (!tier.has(cid)) tier.set(cid, 2); });
+    const bonus = new Map();
+    g.deck.main.forEach((cid) => bonus.set(cid, 12));
+    (g.deck.budget || []).forEach((cid) => { if (!bonus.has(cid)) bonus.set(cid, 6); });
+    Object.values(g.alternates || {}).flat().forEach((cid) => { if (!bonus.has(cid)) bonus.set(cid, 3); });
+    const W = { 1: 1, 8: 1.5, 2: 0.3, 19: 0.4, 15: 0.5, 16: 0.3, 3: 8, 4: 8, 5: 8, 6: 8, 7: 8, 18: 0.1, 14: 0.1 };
     const scoreCache = new Map();
     const score = (r) => {
       if (!scoreCache.has(r.id)) {
-        const eff = cardEffects(DATA.cardById[r.id], Math.max(1, r.level || 1));
-        const v = (eid) => { const e = eff.find((x) => x.id === eid); return (e && e.value) || 0; };
-        scoreCache.set(r.id, v(1) + v(8) * 1.5 + v(2) * 0.3 + v(19) * 0.4 + v(15) * 0.5 + v(16) * 0.3
-          + (v(3) + v(4) + v(5) + v(6) + v(7)) * 8 + v(18) * 0.1 + v(14) * 0.1);
+        const c = DATA.cardById[r.id];
+        // Seviye dikkate alınmıyorsa kart, sendeki uncap'in izin verdiği en yüksek seviyede sayılır
+        const lv = invUseLevel ? Math.max(1, r.level || 1) : levelFor(c, r.uncap || 0);
+        const tot = {};
+        cardEffects(c, lv).forEach((e) => { tot[e.id] = (tot[e.id] || 0) + (e.value || 0); });
+        if (c.unique && lv >= c.unique.level) uniqueBonus(c).forEach(([id, val]) => { tot[id] = (tot[id] || 0) + val; });
+        let s = 0;
+        Object.entries(W).forEach(([id, w]) => { s += (tot[id] || 0) * w; });
+        scoreCache.set(r.id, s + (bonus.get(r.id) || 0));
       }
       return scoreCache.get(r.id);
     };
-    const rank = (a, b) => ((tier.has(a.id) ? tier.get(a.id) : 3) - (tier.has(b.id) ? tier.get(b.id) : 3)) || (score(b) - score(a));
+    const rank = (a, b) => score(b) - score(a);
     const charOf = (r) => norm(DATA.cardById[r.id].name);
     const flexCard = DATA.cardById[g.deck.flex];
     const used = new Set(flexCard ? [norm(flexCard.name)] : []);
+    const trainee = DATA.umaById[g.id];
+    if (trainee) used.add(norm(trainee.name));   // Uma'nın kendi destek kartı desteye konamaz
     const types = g.deck.main.map((cid) => (DATA.cardById[cid] || {}).type);
     const pick = types.map((t) => {
       const best = owned.filter((r) => DATA.cardById[r.id].type === t && !used.has(charOf(r))).sort(rank)[0];
@@ -382,7 +410,8 @@
           <h2>Desteler</h2>
           ${deckRow("Önerilen deste", g.deck.main, g.deck.flex)}
           ${g.deck.budget && g.deck.budget.length ? deckRow("Budget deste", g.deck.budget, g.deck.flex) : ""}
-          ${INV.cards ? deckRow("Envanterinden", inventoryDeck(g), g.deck.flex)
+          ${INV.cards ? deckRow("Envanterinden", inventoryDeck(g), g.deck.flex, "",
+              `<button type="button" class="toggle small ${invUseLevel ? "on" : ""}" id="invLevel" aria-pressed="${invUseLevel}"><span class="knob" aria-hidden="true"></span>Seviyeyi dikkate al</button>`)
             : `<div class="deck"><h3>Envanterinden</h3><p class="hint"><a href="#envanter">Kartlarını yükle</a>, sendeki kartlarla bir deste kurulsun.</p></div>`}
         </section>
         <section class="panel wide">
@@ -649,6 +678,7 @@
   }
 
   let teamCompare = store.get("teamCompare", false);
+  let invUseLevel = store.get("invUseLevel", true);
   let teamAnim = false;   // sadece düğmeye basılınca çubuklar animasyonla gelir
 
   function renderTeam() {
@@ -768,6 +798,8 @@
   }));
 
   app.addEventListener("click", (ev) => {
+    const il = ev.target.closest && ev.target.closest("#invLevel");
+    if (il) { invUseLevel = !invUseLevel; store.set("invUseLevel", invUseLevel); render(); return; }
     const tg = ev.target.closest && ev.target.closest("#teamCompare");
     if (tg) { teamCompare = !teamCompare; store.set("teamCompare", teamCompare); teamAnim = true; render(); teamAnim = false; return; }
     if (ev.target.id === "invClear" || ev.target.id === "teamClear") {
