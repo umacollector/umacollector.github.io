@@ -64,6 +64,19 @@
     return { kind, rows, date: dateM ? dateM[1] : "" };
   }
 
+  // Ünvan birebir tutmazsa (OCR hatası) aynı isimli kayıtlar arasından en benzer ünvanı seçer.
+  const bigrams = (s) => { const t = norm(s); const out = new Set(); for (let i = 0; i < t.length - 1; i++) out.add(t.slice(i, i + 2)); return out; };
+  function similar(a, b) {
+    const A = bigrams(a), B = bigrams(b); if (!A.size || !B.size) return 0;
+    let n = 0; A.forEach((x) => { if (B.has(x)) n++; }); return 2 * n / (A.size + B.size);
+  }
+  function fuzzyId(list, name, title) {
+    const same = list.filter((x) => norm(x.name).replace(/[^a-z0-9]/g, "") === norm(name).replace(/[^a-z0-9]/g, ""));
+    let best = null, score = 0.6;
+    same.forEach((x) => { const s = similar(x.title, title); if (s > score) { score = s; best = x.id; } });
+    return best;
+  }
+
   function importExport(text) {
     const p = parseExport(text);
     if (!p || !p.kind) return { ok: false, msg: "Bu dosya tanınmadı. Uma Collector'ın export klasöründeki umauma.txt, umacard.txt ya da umateam.txt dosyalarından birini seç." };
@@ -71,14 +84,14 @@
     if (p.kind === "umas") {
       const idx = new Map(DATA.umas.map((u) => [invKey(u.name, u.title), u.id]));
       rows = p.rows.map((r) => {
-        const id = idx.get(invKey(r["İsim"], r["Ünvan"])) || null;
+        const id = idx.get(invKey(r["İsim"], r["Ünvan"])) || fuzzyId(DATA.umas, r["İsim"], r["Ünvan"]);
         if (!id) miss++;
         return { id, name: r["İsim"], title: r["Ünvan"], stars: Number(r["Yıldız"]) || 0, potential: Number(r["Potential"]) || 0 };
       });
     } else if (p.kind === "cards") {
       const idx = new Map(DATA.cards.map((c) => [invKey(c.name, c.title), c.id]));
       rows = p.rows.map((r) => {
-        const id = idx.get(invKey(r["İsim"], r["Ünvan"])) || null;
+        const id = idx.get(invKey(r["İsim"], r["Ünvan"])) || fuzzyId(DATA.cards, r["İsim"], r["Ünvan"]);
         if (!id) miss++;
         return { id, name: r["İsim"], title: r["Ünvan"], level: Number(r["Seviye"]) || 0, uncap: Number(r["Uncap"]) || 0 };
       });
