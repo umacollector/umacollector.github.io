@@ -976,6 +976,15 @@ span.pf-avatar.face, span.pm-av.face { display: block; }
 .card-pop-note { margin: 10px 0 0; text-align: center; font-size: 12px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
 
 /* kart penceresindeki seviye seçimi */
-.lv-seg { margin-top: 2px; padding: 2px; }
-.lv-seg button { font-size: 12px; padding: 4px 10px; }
+.lv-seg { margin-top: 2px; padding: 2px; position: relative; }
+.lv-seg button { position: relative; z-index: 1; font-size: 12px; padding: 4px 10px; background: transparent !important; transition: color .25s; }
 .lv-seg button:disabled { cursor: default; }
+.lv-seg button.on { color: var(--ink); }
+.lv-pill {
+  position: absolute; top: 2px; bottom: 2px; left: 0; width: var(--pw, 0); transform: translateX(var(--px, 0));
+  border-radius: var(--pill); background: var(--yellow); transition: transform .28s cubic-bezier(.3, .8, .3, 1), width .28s cubic-bezier(.3, .8, .3, 1);
+}
+:root[data-theme="dark"] .lv-seg button.on { color: #1b1b1f; }
+.eff-swap li { animation: effSwap .3s ease; }
+@keyframes effSwap { from { opacity: .35; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .lv-pill { transition: none; } .eff-swap li { animation: none; } }

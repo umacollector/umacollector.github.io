@@ -571,7 +571,10 @@
     active.sort((a, b) => (b.id === sortId) - (a.id === sortId));
     const shown = open ? active : active.slice(0, 5);
     const row = (e) => `<li class="${e.id === sortId ? "hl" : ""} ${e.id === FAN_BONUS ? "fan" : ""}"><span>${esc(e.name)}</span><b>${e.value ? fmtEffect(e, e.value) : ""}${e.extra ? `<i class="uq" title="Özel bonustan">+${e.extra}${e.pct ? "%" : ""} özel</i>` : ""}</b></li>`;
-    const lockedRows = open ? locked.map((e) => `<li class="locked"><span>${esc(e.name)}</span><span>Lvl ${daDe(e.unlock)}</span></li>`).join("") : "";
+    const lockedRow = (e) => `<li class="locked"><span>${esc(e.name)}</span><span>Lvl ${daDe(e.unlock)}</span></li>`;
+    // Açık kartta sıra seviyeden bağımsız ve sabit: kartın kendi etki sırası, kilitliler yerinde soluk
+    const fixed = effs.filter((e) => e.value !== 0 || e.extra).sort((a, b) => (b.id === sortId) - (a.id === sortId));
+    const openRows = open ? fixed.map((e) => (e.value === null && !e.extra ? lockedRow(e) : row(e))).join("") : "";
     const hidden = active.length - shown.length;
     return `<article class="box card ${esc(c.type)} ${open ? "open" : ""}" data-key="${key}" tabindex="0" aria-expanded="${open}">
       <div class="card-top">
@@ -582,7 +585,7 @@
           <div class="lvl">Lvl ${lv}${hidden > 0 ? ` · ${hidden} etki daha` : ""}</div>
         </div>
       </div>
-      <ul class="eff">${shown.map(row).join("")}${lockedRows}</ul>
+      <ul class="eff">${open ? openRows : shown.map(row).join("")}</ul>
       <div class="more">
         ${uniqueText(c)}
         ${c.hints.length ? `<h4>Skill ipuçları</h4><div class="taglist">${c.hints.map(skillTag).join("")}</div>` : ""}
@@ -611,18 +614,30 @@
     inner.setAttribute("aria-modal", "true");
     inner.setAttribute("aria-label", c.name);
     bg.appendChild(inner);
-    const draw = () => {
+    const seg = document.createElement("span");
+    seg.className = "seg lv-seg";
+    seg.setAttribute("role", "group");
+    seg.setAttribute("aria-label", "Seviye");
+    seg.innerHTML = `<span class="lv-pill" aria-hidden="true"></span>` + (own
+      ? `<button type="button" data-lvpick="own">Lvl ${ownLv} · Sende</button><button type="button" data-lvpick="max">MLB · Lvl ${maxLv}</button>`
+      : `<button type="button" data-lvpick="max" disabled>MLB · Lvl ${maxLv}</button>`);
+    const placePill = () => {
+      const on = seg.querySelector(useOwn ? "[data-lvpick=own]" : "[data-lvpick=max]");
+      seg.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === on));
+      seg.style.setProperty("--px", on.offsetLeft + "px");
+      seg.style.setProperty("--pw", on.offsetWidth + "px");
+    };
+    const draw = (anim) => {
       inner.innerHTML = cardBox(c, true, useOwn ? ownLv : maxLv);
       const box = inner.querySelector(".box.card");
       box.classList.add("float-pop");
       box.removeAttribute("tabindex");
       const hint = box.querySelector(".close-hint"); if (hint) hint.remove();
       const lvl = box.querySelector(".lvl");
-      lvl.innerHTML = own
-        ? `<span class="seg lv-seg" role="group" aria-label="Seviye">
-             <button type="button" data-lvpick="own" class="${useOwn ? "on" : ""}">Lvl ${ownLv} · Sende</button>
-             <button type="button" data-lvpick="max" class="${useOwn ? "" : "on"}">MLB · Lvl ${maxLv}</button></span>`
-        : `<span class="seg lv-seg"><button type="button" class="on" disabled>MLB · Lvl ${maxLv}</button></span>`;
+      lvl.textContent = "";
+      lvl.appendChild(seg);
+      if (anim) box.querySelector(".eff").classList.add("eff-swap");
+      requestAnimationFrame(placePill);
     };
     draw();
     document.body.appendChild(bg);
@@ -632,7 +647,7 @@
     document.addEventListener("keydown", onKey);
     bg.addEventListener("click", (ev) => {
       const pick = ev.target.closest("[data-lvpick]");
-      if (pick) { useOwn = pick.dataset.lvpick === "own"; draw(); return; }
+      if (pick) { const next = pick.dataset.lvpick === "own"; if (next !== useOwn) { useOwn = next; draw(true); } return; }
       if (ev.target.closest("[data-skill], .lv-seg")) return;
       close();
     });
